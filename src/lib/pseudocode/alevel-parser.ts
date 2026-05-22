@@ -1921,6 +1921,7 @@ export class Interpreter {
   private isTypeCompatible(targetType: string, valueType: string, value: unknown, name: string, isArray: boolean): boolean {
     if (targetType === valueType) return true;
     if (targetType === 'REAL' && valueType === 'INTEGER') return true;
+    if (targetType === 'STRING' && valueType === 'CHAR') return true;
     if (targetType === 'DATE' && (valueType === 'STRING' || valueType === 'CHAR')) return true;
     return false;
   }

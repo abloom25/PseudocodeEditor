@@ -1,15 +1,16 @@
 import type { DeclaredSymbols } from '../types';
 
 const KEYWORDS = [
-  'IF', 'THEN', 'ELSE', 'ENDIF', 'FOR', 'TO', 'STEP', 'NEXT', 'WHILE', 'DO', 'ENDWHILE',
+  'IF', 'THEN', 'ELSE', 'ELSEIF', 'ENDIF', 'FOR', 'TO', 'STEP', 'NEXT', 'ENDFOR', 'WHILE', 'DO', 'ENDWHILE',
   'REPEAT', 'UNTIL', 'CASE', 'OF', 'OTHERWISE', 'ENDCASE', 'PROCEDURE', 'FUNCTION',
   'ENDPROCEDURE', 'ENDFUNCTION', 'RETURN', 'RETURNS', 'CONSTANT', 'DECLARE', 'INPUT',
   'OUTPUT', 'ARRAY', 'OPENFILE', 'CALL', 'READFILE', 'WRITEFILE', 'CLOSEFILE',
   'AND', 'OR', 'NOT', 'TRUE', 'FALSE', 'BYREF', 'BYVAL',
-  'TYPE', 'ENDTYPE', 'DEFINE', 'SET'
+  'TYPE', 'ENDTYPE', 'DEFINE', 'SET', 'DATE', 'APPEND', 'RANDOM', 'SEEK', 'GETRECORD', 'PUTRECORD',
+  'CLASS', 'ENDCLASS', 'PUBLIC', 'PRIVATE', 'NEW', 'INHERITS', 'SUPER'
 ];
 
-const PRIMITIVE_TYPES = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN'];
+const PRIMITIVE_TYPES = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN', 'DATE'];
 
 export function extractDeclaredSymbols(code: string): DeclaredSymbols {
   const variables: DeclaredSymbols['variables'] = [];
@@ -54,7 +55,7 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
       constants.push({ name, type, value, line: lineNum });
     }
 
-    const funcMatch = line.match(/^FUNCTION\s+(\w+)\s*\(([^)]*)\)\s*RETURNS\s+(\w+)/i);
+    const funcMatch = line.match(/^(?:PUBLIC\s+|PRIVATE\s+)?FUNCTION\s+(\w+)\s*\(([^)]*)\)\s*RETURNS\s+(\w+)/i);
     if (funcMatch) {
       const name = funcMatch[1];
       const paramsStr = funcMatch[2].trim();
@@ -63,7 +64,7 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
       functions.push({ name, params, returnType, line: lineNum });
     }
 
-    const procMatch = line.match(/^PROCEDURE\s+(\w+)\s*\(([^)]*)\)/i);
+    const procMatch = line.match(/^(?:PUBLIC\s+|PRIVATE\s+)?PROCEDURE\s+(\w+)\s*\(([^)]*)\)/i);
     if (procMatch) {
       const name = procMatch[1];
       const paramsStr = procMatch[2].trim();
@@ -89,6 +90,11 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
     const defineMatch = line.match(/^DEFINE\s+(\w+)\s*\(/i);
     if (defineMatch) {
       types.push({ name: defineMatch[1], kind: 'set', line: lineNum });
+    }
+    // CLASS 声明
+    const classMatch = line.match(/^CLASS\s+(\w+)(?:\s+INHERITS\s+(\w+))?/i);
+    if (classMatch) {
+      types.push({ name: classMatch[1], kind: classMatch[2] ? `class inherits ${classMatch[2]}` : 'class', line: lineNum });
     }
   }
 

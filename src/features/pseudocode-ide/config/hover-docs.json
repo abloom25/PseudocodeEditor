@@ -43,7 +43,22 @@
       "TYPE": "### TYPE - 用户自定义类型 (A-Level)\n\n**语法**:\n```pseudocode\nTYPE MyType = (Val1, Val2, ...)    // 枚举类型\nTYPE MyPtr = ^BaseType            // 指针类型\nTYPE MyRecord                     // 记录类型\n    DECLARE field1 : TYPE\n    DECLARE field2 : TYPE\nENDTYPE\n```\n\n用于定义枚举、指针或记录类型。",
       "ENDTYPE": "### ENDTYPE - 类型定义结束\n\n标记 `TYPE` 语句的结束。",
       "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\nENDTYPE\n```\n\n用于定义集合常量。",
-      "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。"
+      "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。",
+      "DATE": "### DATE - 日期类型 (A-Level)\n\n**语法**: `DECLARE name : DATE`\n\n**示例**:\n```pseudocode\nDECLARE DateOfBirth : DATE\nDateOfBirth <- 02/01/2005\n```\n\n当前按日期文本保存和输出。",
+      "ELSEIF": "### ELSEIF - 多分支条件\n\n**语法**:\n```pseudocode\nIF condition1 THEN\n    // statements\nELSEIF condition2 THEN\n    // statements\nELSE\n    // statements\nENDIF\n```",
+      "ENDFOR": "### ENDFOR - FOR 循环结束\n\nA-Level 可使用 `ENDFOR` 结束 FOR 循环。\n\n**示例**:\n```pseudocode\nFOR i <- 1 TO 10\n    OUTPUT i\nENDFOR\n```",
+      "APPEND": "### APPEND - 文件追加模式\n\n**语法**: `OPENFILE filename FOR APPEND`\n\n写入内容会追加到文件末尾，不清空原文件。",
+      "RANDOM": "### RANDOM - 随机访问文件模式\n\n**语法**: `OPENFILE filename FOR RANDOM`\n\n配合 `SEEK`、`GETRECORD` 和 `PUTRECORD` 使用。",
+      "SEEK": "### SEEK - 定位随机文件记录\n\n**语法**: `SEEK filename, position`\n\n`position` 从 1 开始。",
+      "GETRECORD": "### GETRECORD - 读取随机文件记录\n\n**语法**: `GETRECORD filename, recordVariable`\n\n从当前随机文件位置读取一条记录到变量。",
+      "PUTRECORD": "### PUTRECORD - 写入随机文件记录\n\n**语法**: `PUTRECORD filename, recordVariable`\n\n向当前随机文件位置写入一条记录。",
+      "CLASS": "### CLASS - 类定义 (A-Level)\n\n**语法**:\n```pseudocode\nCLASS Pet\n    PRIVATE Name : STRING\n    PUBLIC PROCEDURE NEW(GivenName : STRING)\n        Name <- GivenName\n    ENDPROCEDURE\nENDCLASS\n```",
+      "ENDCLASS": "### ENDCLASS - 类定义结束\n\n标记 `CLASS` 定义的结束。",
+      "PUBLIC": "### PUBLIC - 公开成员\n\n公开属性或方法可从类外访问。\n\n**示例**:\n```pseudocode\nPUBLIC PROCEDURE SetName(Name : STRING)\n```",
+      "PRIVATE": "### PRIVATE - 私有成员\n\n私有属性或方法只能在类内部访问。\n\n**示例**:\n```pseudocode\nPRIVATE Name : STRING\n```",
+      "NEW": "### NEW - 构造器 / 创建对象\n\n构造器是名为 `NEW` 的过程。\n\n**定义**:\n```pseudocode\nPUBLIC PROCEDURE NEW(GivenName : STRING)\n```\n\n**创建对象**:\n```pseudocode\nMyPet <- NEW Pet(\"Kitty\")\n```",
+      "INHERITS": "### INHERITS - 类继承\n\n**语法**: `CLASS Child INHERITS Parent`\n\n子类继承父类公开成员。",
+      "SUPER": "### SUPER - 调用父类方法\n\n**语法**: `SUPER.Method(args)`\n\n常用于子类构造器中调用父类构造器：\n```pseudocode\nSUPER.NEW(GivenName)\n```"
     },
     "types": {
       "INTEGER": "### 📊 整数类型\n\n**范围**: -2,147,483,648 到 2,147,483,647\n\n**示例**:\n```pseudocode\nDECLARE Count : INTEGER\nCount <- 42\nCount <- -10\nCount <- 0\n```",
