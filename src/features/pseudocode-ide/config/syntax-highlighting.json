@@ -1,0 +1,22 @@
+{
+  "keywords": [
+    "DECLARE", "CONSTANT", "INPUT", "OUTPUT",
+    "IF", "THEN", "ELSE", "ENDIF",
+    "CASE", "OF", "OTHERWISE", "ENDCASE",
+    "FOR", "TO", "STEP", "NEXT",
+    "REPEAT", "UNTIL", "WHILE", "DO", "ENDWHILE",
+    "PROCEDURE", "FUNCTION", "ENDPROCEDURE", "ENDFUNCTION",
+    "RETURNS", "RETURN", "ARRAY", "AND", "OR", "NOT",
+    "TRUE", "FALSE",
+    "OPENFILE", "CALL", "READFILE", "WRITEFILE", "CLOSEFILE"
+  ],
+  "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
+  "builtins": ["LENGTH", "LCASE", "UCASE", "SUBSTRING", "MID", "RIGHT", "ROUND", "RANDOM", "RAND", "DIV", "MOD", "EOF", "INT"],
+  "igcse-specific": {
+    "keywords": ["DO"],
+    "builtins": ["SUBSTRING", "RANDOM"]
+  },
+  "alevel-specific": {
+    "builtins": ["MID", "RIGHT", "RAND", "INT"]
+  }
+}

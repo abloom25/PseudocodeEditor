@@ -1,0 +1,85 @@
+{
+  "common": {
+    "dataTypes": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
+    "functions": [
+      { "name": "LENGTH(string)", "desc": "返回字符串长度" },
+      { "name": "LCASE(string)", "desc": "转换为小写" },
+      { "name": "UCASE(string)", "desc": "转换为大写" },
+      { "name": "ROUND(number, places)", "desc": "四舍五入" },
+      { "name": "DIV(a, b)", "desc": "整数除法" },
+      { "name": "MOD(a, b)", "desc": "取模运算" },
+      { "name": "EOF(filename)", "desc": "检测文件结束" }
+    ],
+    "controlStructures": [
+      "IF condition THEN ... ENDIF",
+      "IF condition THEN ... ELSE ... ENDIF",
+      "CASE OF variable ... ENDCASE",
+      "FOR i <- 1 TO 10 ... NEXT i",
+      "REPEAT ... UNTIL condition"
+    ],
+    "declarations": [
+      "DECLARE name : INTEGER",
+      "variable <- expression",
+      "DECLARE arr : ARRAY[1:10] OF STRING"
+    ],
+    "fileOperations": [
+      "OPENFILE filename FOR READ",
+      "OPENFILE filename FOR WRITE",
+      "READFILE filename, variable",
+      "WRITEFILE filename, value",
+      "CLOSEFILE filename"
+    ],
+    "functionsProcedures": [
+      "FUNCTION Name(params) RETURNS type",
+      "  RETURN value",
+      "ENDFUNCTION",
+      "PROCEDURE Name(params)",
+      "ENDPROCEDURE",
+      "CALL ProcedureName(args)"
+    ]
+  },
+  "igcse-0478": {
+    "extraKeywords": ["DO"],
+    "extraFunctions": [
+      { "name": "SUBSTRING(string, start, length)", "desc": "提取子字符串" },
+      { "name": "RANDOM()", "desc": "0-1 随机数" }
+    ],
+    "extraControlStructures": [
+      "WHILE condition DO ... ENDWHILE"
+    ],
+    "extraDeclarations": [
+      "CONSTANT name <- value"
+    ],
+    "extraFunctionsProcedures": [
+      "ProcedureName(args)  // 无需 CALL"
+    ]
+  },
+  "alevel-9618": {
+    "extraKeywords": [],
+    "extraFunctions": [
+      { "name": "MID(string, start, length)", "desc": "提取子字符串" },
+      { "name": "RIGHT(string, length)", "desc": "从右侧提取" },
+      { "name": "RAND(x)", "desc": "0-x 随机数" },
+      { "name": "INT(x)", "desc": "取整" }
+    ],
+    "extraControlStructures": [
+      "WHILE condition ... ENDWHILE  // 无需 DO",
+      "  value1 TO value2 : ...       // CASE 范围"
+    ],
+    "extraDeclarations": [
+      "CONSTANT name = value  // 使用 = 而非 <-"
+    ],
+    "extraFunctionsProcedures": [
+      "CALL ProcedureName(args)  // 必须使用 CALL"
+    ],
+    "differences": [
+      { "keyword": "CONSTANT", "diff": "使用 `=` 而非 `<-`" },
+      { "keyword": "WHILE", "diff": "不使用 `DO`" },
+      { "keyword": "CALL", "diff": "过程调用必须使用" },
+      { "keyword": "CASE", "diff": "支持 `TO` 范围: `1 TO 5 : ...`" },
+      { "keyword": "MID()", "diff": "替代 SUBSTRING()" },
+      { "keyword": "RAND(x)", "diff": "参数指定范围" },
+      { "keyword": "INT(x)", "diff": "取整函数" }
+    ]
+  }
+}

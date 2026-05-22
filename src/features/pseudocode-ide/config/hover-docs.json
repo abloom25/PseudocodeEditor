@@ -1,0 +1,83 @@
+{
+  "common": {
+    "keywords": {
+      "DECLARE": "### 变量声明\n\n**语法**: `DECLARE name : TYPE`\n\n**示例**:\n```pseudocode\nDECLARE Age : INTEGER\nDECLARE Name : STRING\n```",
+      "CONSTANT": "### 常量声明\n\n**语法**: `CONSTANT name <- value`\n\n**示例**:\n```pseudocode\nCONSTANT Pi <- 3.14159\nCONSTANT MaxValue <- 100\n```",
+      "INPUT": "### 输入语句\n\n**语法**: `INPUT variable`\n\n**示例**:\n```pseudocode\nINPUT Age\nINPUT Name\n```",
+      "OUTPUT": "### 输出语句\n\n**语法**: `OUTPUT expression1, expression2, ...`\n\n**示例**:\n```pseudocode\nOUTPUT \"Age:\", Age\nOUTPUT \"Hello World\"\n```",
+      "IF": "### 条件语句\n\n**语法**:\n```pseudocode\nIF condition THEN\n    // statements\nELSE\n    // else statements\nENDIF\n```",
+      "THEN": "### IF 语句分支开始\n\n配合 `IF` 关键字使用，标记条件为真时的代码块。",
+      "ELSE": "### IF 语句否则分支\n\n标记条件为假时的代码块。",
+      "ENDIF": "### 条件语句结束\n\n标记 `IF` 语句的结束。",
+      "CASE": "### 多分支选择语句\n\n**语法**:\n```pseudocode\nCASE OF variable\n    value1 : // statement1\n    value2 : // statement2\n    OTHERWISE : // default\nENDCASE\n```",
+      "OF": "### CASE 语句值匹配部分\n\n配合 `CASE` 使用，标记值匹配列表的开始。",
+      "OTHERWISE": "### CASE 语句默认分支\n\n当所有值都不匹配时执行的默认分支。",
+      "ENDCASE": "### CASE 语句结束\n\n标记 `CASE` 语句的结束。",
+      "FOR": "### 计数循环\n\n**语法**:\n```pseudocode\nFOR var <- start TO end [STEP step]\n    // body\nNEXT var\n```",
+      "TO": "### FOR 循环范围限定\n\n标记循环结束值。",
+      "STEP": "### FOR 循环步长\n\n指定每次循环变量的增量（可选）。",
+      "NEXT": "### FOR 循环结束\n\n标记 `FOR` 循环的结束。",
+      "WHILE": "### 条件前置循环\n\n**语法**:\n```pseudocode\nWHILE condition DO\n    // body\nENDWHILE\n```",
+      "DO": "### WHILE 循环体开始\n\n配合 `WHILE` 使用，标记循环体开始。",
+      "ENDWHILE": "### WHILE 循环结束\n\n标记 `WHILE` 循环的结束。",
+      "REPEAT": "### 条件后置循环\n\n**语法**:\n```pseudocode\nREPEAT\n    // body\nUNTIL condition\n```",
+      "UNTIL": "### REPEAT 循环结束条件\n\n标记 `REPEAT` 循环的结束条件。",
+      "PROCEDURE": "### 过程定义\n\n**语法**:\n```pseudocode\nPROCEDURE Name(param1 : TYPE, param2 : TYPE)\n    // body\nENDPROCEDURE\n```",
+      "ENDPROCEDURE": "### 过程定义结束\n\n标记过程定义的结束。",
+      "FUNCTION": "### 函数定义\n\n**语法**:\n```pseudocode\nFUNCTION Name(params) RETURNS TYPE\n    // body\n    RETURN value\nENDFUNCTION\n```",
+      "RETURNS": "### 函数返回类型声明\n\n指定函数的返回值类型。",
+      "RETURN": "### 函数返回语句\n\n从函数中返回值并退出。",
+      "ENDFUNCTION": "### 函数定义结束\n\n标记函数定义的结束。",
+      "ARRAY": "### 数组类型\n\n**语法**: `ARRAY[low:high] OF type`\n\n**示例**:\n```pseudocode\nDECLARE arr : ARRAY[1:10] OF INTEGER\nDECLARE matrix : ARRAY[1:3, 1:3] OF CHAR\n```",
+      "AND": "### 逻辑与运算\n\n两个条件都为真时结果为真。",
+      "OR": "### 逻辑或运算\n\n任一条件为真时结果为真。",
+      "NOT": "### 逻辑非运算\n\n取反布尔值。",
+      "TRUE": "### 布尔真\n\n布尔类型的真值。",
+      "FALSE": "### 布尔假\n\n布尔类型的假值。",
+      "OPENFILE": "### 打开文件\n\n**语法**: `OPENFILE <filename> FOR READ` 或 `OPENFILE <filename> FOR WRITE`\n\n打开指定文件用于读取或写入。",
+      "CALL": "### 调用过程\n\n**语法**: `CALL <ProcedureName>` 或 `CALL <ProcedureName>(Value1, Value2...)`\n\n调用已定义的过程。",
+      "READFILE": "### 从文件读取\n\n**语法**: `READFILE \"filename\", variable`",
+      "WRITEFILE": "### 写入文件\n\n**语法**: `WRITEFILE \"filename\", expression`",
+      "CLOSEFILE": "### 关闭文件\n\n**语法**: `CLOSEFILE \"filename\"`",
+      "EOF": "### 文件结束检测\n\n**语法**: `EOF(\"filename\")`\n\n**返回值**: `BOOLEAN`"
+    },
+    "types": {
+      "INTEGER": "### 📊 整数类型\n\n**范围**: -2,147,483,648 到 2,147,483,647\n\n**示例**:\n```pseudocode\nDECLARE Count : INTEGER\nCount <- 42\nCount <- -10\nCount <- 0\n```",
+      "REAL": "### 🔢 实数类型\n\n用于表示小数和浮点数。\n\n**示例**:\n```pseudocode\nDECLARE Price : REAL\nPrice <- 3.14\nPrice <- -0.5\nPrice <- 100.0\n```",
+      "CHAR": "### 🔤 字符类型\n\n单个字符，使用单引号。\n\n**示例**:\n```pseudocode\nDECLARE Grade : CHAR\nGrade <- 'A'\nGrade <- '5'\nGrade <- '?'\n```",
+      "STRING": "### 📝 字符串类型\n\n多个字符组成的文本，使用双引号。\n\n**示例**:\n```pseudocode\nDECLARE Name : STRING\nName <- \"Hello\"\nName <- \"123\"\nName <- \"\"\n```",
+      "BOOLEAN": "### ✓ 布尔类型\n\n逻辑值类型。\n\n**取值**:\n- `TRUE` - 真\n- `FALSE` - 假\n\n**示例**:\n```pseudocode\nDECLARE IsValid : BOOLEAN\nIsValid <- TRUE\nIsValid <- FALSE\n```"
+    },
+    "builtins": {
+      "LENGTH": "### 📏 LENGTH - 字符串长度\n\n**语法**: `LENGTH(string)`\n\n**返回值**: `INTEGER`\n\n**示例**:\n```pseudocode\nLENGTH(\"Hello\") → 5\nLENGTH(\"\") → 0\n```",
+      "LCASE": "### 🔡 LCASE - 字符串转小写\n\n**语法**: `LCASE(string)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nLCASE(\"HELLO\") → \"hello\"\nLCASE(\"Hello World\") → \"hello world\"\n```",
+      "UCASE": "### 🔠 UCASE - 字符串转大写\n\n**语法**: `UCASE(string)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nUCASE(\"hello\") → \"HELLO\"\nUCASE(\"Hello World\") → \"HELLO WORLD\"\n```",
+      "ROUND": "### 🎯 ROUND - 四舍五入\n\n**语法**: `ROUND(real, decimalPlaces)`\n\n**返回值**: `REAL`\n\n**示例**:\n```pseudocode\nROUND(3.14159, 2) → 3.14\nROUND(3.5, 0) → 4.0\n```",
+      "DIV": "### ➗ DIV - 整数除法\n\n**语法**: `DIV(a, b)`\n\n**返回值**: `INTEGER`\n\n返回 a 除以 b 的整数部分。\n\n**示例**:\n```pseudocode\nDIV(10, 3) → 3\nDIV(7, 2) → 3\n```",
+      "MOD": "### 📐 MOD - 取模运算\n\n**语法**: `MOD(a, b)`\n\n**返回值**: `INTEGER`\n\n返回 a 除以 b 的余数。\n\n**示例**:\n```pseudocode\nMOD(10, 3) → 1\nMOD(7, 2) → 1\n```"
+    }
+  },
+  "igcse-0478": {
+    "keywords": {
+      "CONSTANT": "### 常量声明\n\n**语法**: `CONSTANT name <- value`\n\n**示例**:\n```pseudocode\nCONSTANT Pi <- 3.14159\nCONSTANT MaxValue <- 100\n```",
+      "WHILE": "### 条件前置循环\n\n**语法**:\n```pseudocode\nWHILE condition DO\n    // body\nENDWHILE\n```"
+    },
+    "builtins": {
+      "SUBSTRING": "### ✂️ SUBSTRING - 提取子字符串\n\n**语法**: `SUBSTRING(string, start, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nSUBSTRING(\"Hello\", 2, 3) → \"ell\"\nSUBSTRING(\"Hello World\", 1, 5) → \"Hello\"\n```",
+      "RANDOM": "### 🎲 RANDOM - 随机数\n\n**语法**: `RANDOM()`\n\n**返回值**: `REAL`（0 到 1 之间）\n\n**示例**:\n```pseudocode\nRANDOM() → 0.12345\nRANDOM() → 0.98765\n```"
+    }
+  },
+  "alevel-9618": {
+    "keywords": {
+      "CONSTANT": "### 常量声明\n\n**语法**: `CONSTANT name = value`\n\n**示例**:\n```pseudocode\nCONSTANT Pi = 3.14159\nCONSTANT MaxValue = 100\n```",
+      "WHILE": "### 条件前置循环\n\n**语法**:\n```pseudocode\nWHILE condition\n    // body\nENDWHILE\n```\n\n注意：A-Level 不使用 DO 关键字。",
+      "CALL": "### 调用过程\n\n**语法**: `CALL <ProcedureName>(Value1, Value2...)`\n\nA-Level 必须使用 CALL 关键字调用过程。\n\n**示例**:\n```pseudocode\nCALL PrintMessage(\"Hello\")\nCALL AddNumbers(a, b)\n```"
+    },
+    "builtins": {
+      "MID": "### ✂️ MID - 提取子字符串 (A-Level)\n\n**语法**: `MID(string, start, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nMID(\"Hello\", 2, 3) → \"ell\"\nMID(\"Hello World\", 1, 5) → \"Hello\"\n```",
+      "RIGHT": "### ✂️ RIGHT - 从右侧提取子字符串 (A-Level)\n\n**语法**: `RIGHT(string, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nRIGHT(\"Hello\", 3) → \"llo\"\nRIGHT(\"Hello World\", 5) → \"World\"\n```",
+      "RAND": "### 🎲 RAND - 随机数 (A-Level)\n\n**语法**: `RAND(x)`\n\n**返回值**: `REAL`（0 到 x 之间）\n\n**示例**:\n```pseudocode\nRAND(1) → 0.12345\nRAND(100) → 45.678\n```",
+      "INT": "### 🔢 INT - 取整 (A-Level)\n\n**语法**: `INT(x)`\n\n**返回值**: `INTEGER`\n\n返回不大于 x 的最大整数。\n\n**示例**:\n```pseudocode\nINT(3.7) → 3\nINT(-2.3) → -3\n```"
+    }
+  }
+}
