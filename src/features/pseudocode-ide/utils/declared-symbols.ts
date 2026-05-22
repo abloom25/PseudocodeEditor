@@ -5,7 +5,8 @@ const KEYWORDS = [
   'REPEAT', 'UNTIL', 'CASE', 'OF', 'OTHERWISE', 'ENDCASE', 'PROCEDURE', 'FUNCTION',
   'ENDPROCEDURE', 'ENDFUNCTION', 'RETURN', 'RETURNS', 'CONSTANT', 'DECLARE', 'INPUT',
   'OUTPUT', 'ARRAY', 'OPENFILE', 'CALL', 'READFILE', 'WRITEFILE', 'CLOSEFILE',
-  'AND', 'OR', 'NOT', 'TRUE', 'FALSE', 'BYREF', 'BYVAL'
+  'AND', 'OR', 'NOT', 'TRUE', 'FALSE', 'BYREF', 'BYVAL',
+  'TYPE', 'ENDTYPE', 'DEFINE', 'SET'
 ];
 
 const PRIMITIVE_TYPES = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN'];
@@ -16,6 +17,7 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
   const functions: DeclaredSymbols['functions'] = [];
   const procedures: DeclaredSymbols['procedures'] = [];
   const arrays: DeclaredSymbols['arrays'] = [];
+  const types: DeclaredSymbols['types'] = [];
 
   const lines = code.split('\n');
 
@@ -37,7 +39,8 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
       arrays.push({ name: arrayMatch[1], dimensions: arrayMatch[2].trim(), elementType: arrayMatch[3].toUpperCase(), line: lineNum });
     }
 
-    const constMatch = line.match(/^CONSTANT\s+(\w+)\s*<-\s*(.+)/i);
+    // 支持 IGCSE: CONSTANT name <- value 和 A-Level: CONSTANT name = value
+    const constMatch = line.match(/^CONSTANT\s+(\w+)\s*(?:<-|=)\s*(.+)/i);
     if (constMatch) {
       const name = constMatch[1];
       const value = constMatch[2].trim();
@@ -47,6 +50,7 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
       else if (/^\d+\.\d+$/.test(value)) type = 'REAL';
       else if (/^\d+$/.test(value)) type = 'INTEGER';
       else if (value.toUpperCase() === 'TRUE' || value.toUpperCase() === 'FALSE') type = 'BOOLEAN';
+      else type = value.toUpperCase();
       constants.push({ name, type, value, line: lineNum });
     }
 
@@ -66,7 +70,27 @@ export function extractDeclaredSymbols(code: string): DeclaredSymbols {
       const params = paramsStr ? paramsStr.split(',').map(p => p.trim()) : [];
       procedures.push({ name, params, line: lineNum });
     }
+
+    // TYPE 声明: 支持枚举、指针、记录三种形式
+    const typeEnumMatch = line.match(/^TYPE\s+(\w+)\s*=\s*\(/i);
+    if (typeEnumMatch) {
+      types.push({ name: typeEnumMatch[1], kind: 'enum', line: lineNum });
+    }
+    const typePtrMatch = line.match(/^TYPE\s+(\w+)\s*=\s*\^/i);
+    if (typePtrMatch) {
+      types.push({ name: typePtrMatch[1], kind: 'pointer', line: lineNum });
+    }
+    const typeRecMatch = line.match(/^TYPE\s+(\w+)\s*$/i);
+    if (typeRecMatch) {
+      types.push({ name: typeRecMatch[1], kind: 'record', line: lineNum });
+    }
+
+    // DEFINE set 声明
+    const defineMatch = line.match(/^DEFINE\s+(\w+)\s*\(/i);
+    if (defineMatch) {
+      types.push({ name: defineMatch[1], kind: 'set', line: lineNum });
+    }
   }
 
-  return { variables, constants, functions, procedures, arrays };
+  return { variables, constants, functions, procedures, arrays, types };
 }

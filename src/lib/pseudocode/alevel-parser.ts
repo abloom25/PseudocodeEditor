@@ -39,6 +39,8 @@ export enum TokenType {
   CALL = 'CALL',
   BYREF = 'BYREF', BYVAL = 'BYVAL',
   ARRAY = 'ARRAY', AND = 'AND', OR = 'OR', NOT = 'NOT', TRUE = 'TRUE', FALSE = 'FALSE',
+  // 用户自定义类型关键字
+  TYPE = 'TYPE', ENDTYPE = 'ENDTYPE', DEFINE = 'DEFINE', SET = 'SET',
   // 内置函数
   LENGTH = 'LENGTH', LCASE = 'LCASE', UCASE = 'UCASE', SUBSTRING = 'SUBSTRING',
   MID_FUNC = 'MID_FUNC', RIGHT_FUNC = 'RIGHT_FUNC',
@@ -58,6 +60,8 @@ export enum TokenType {
   // 界符
   LPAREN = 'LPAREN', RPAREN = 'RPAREN', LBRACKET = 'LBRACKET', RBRACKET = 'RBRACKET',
   COLON = 'COLON', COMMA = 'COMMA',
+  DOT = 'DOT',        // 记录字段访问: ClassList[1].Name
+  CARET = 'CARET',    // 指针解引用: MyPointer^
   // 字面量 / 标识符
   IDENTIFIER = 'IDENTIFIER', NUMBER = 'NUMBER', REAL_NUMBER = 'REAL_NUMBER',
   STRING_LITERAL = 'STRING_LITERAL', CHAR_LITERAL = 'CHAR_LITERAL',
@@ -76,7 +80,13 @@ export type ASTNodeType =
   | 'Identifier' | 'NumberLiteral' | 'RealLiteral' | 'StringLiteral' | 'CharLiteral' | 'BooleanLiteral'
   | 'ArrayAccess' | 'ArrayDeclaration'
   | 'FileOpenRead' | 'FileOpenWrite' | 'FileRead' | 'FileWrite' | 'FileClose'
-  | 'RandomizeStatement' | 'Empty';
+  | 'RandomizeStatement' | 'Empty'
+  // 用户自定义类型节点
+  | 'TypeDeclaration'        // TYPE MyType ... ENDTYPE
+  | 'SetDefinition'         // DEFINE name (...) : SetType
+  | 'FieldAccess'          // record.field
+  | 'PointerDereference'   // pointer^
+  | 'AddressOf';          // ^variable
 
 export interface ASTNode { type: ASTNodeType; [key: string]: unknown; }
 
@@ -106,6 +116,8 @@ export class Lexer {
     BYREF: TokenType.BYREF, BYVAL: TokenType.BYVAL,
     ARRAY: TokenType.ARRAY, AND: TokenType.AND, OR: TokenType.OR, NOT: TokenType.NOT,
     TRUE: TokenType.TRUE, FALSE: TokenType.FALSE,
+    // 用户自定义类型
+    TYPE: TokenType.TYPE, ENDTYPE: TokenType.ENDTYPE, DEFINE: TokenType.DEFINE, SET: TokenType.SET,
     LENGTH: TokenType.LENGTH, LCASE: TokenType.LCASE, UCASE: TokenType.UCASE,
     SUBSTRING: TokenType.SUBSTRING, MID: TokenType.MID_FUNC, RIGHT: TokenType.RIGHT_FUNC,
     ROUND: TokenType.ROUND, RANDOM: TokenType.RANDOM,
@@ -249,6 +261,8 @@ export class Lexer {
         case ']': tok = { type: TokenType.RBRACKET, value: ']', line, column: col }; this.advance(); break;
         case ':': tok = { type: TokenType.COLON, value: ':', line, column: col }; this.advance(); break;
         case ',': tok = { type: TokenType.COMMA, value: ',', line, column: col }; this.advance(); break;
+        case '.': tok = { type: TokenType.DOT, value: '.', line, column: col }; this.advance(); break;
+        case '^': tok = { type: TokenType.CARET, value: '^', line, column: col }; this.advance(); break;
       }
       if (tok) tokens.push(tok); else this.advance();
     }
@@ -334,6 +348,7 @@ export class Parser {
       TokenType.NEXT, TokenType.UNTIL, TokenType.ENDWHILE, TokenType.ENDIF,
       TokenType.ENDCASE, TokenType.ENDPROCEDURE, TokenType.ENDFUNCTION,
       TokenType.ELSE, TokenType.THEN, TokenType.OTHERWISE,
+      TokenType.TYPE, TokenType.DEFINE,
     ].includes(t.type);
   }
 
@@ -368,6 +383,8 @@ export class Parser {
   private parseStatement(): ASTNode {
     const t = this.peek();
     switch (t.type) {
+      case TokenType.TYPE: return this.parseTypeDeclaration();
+      case TokenType.DEFINE: return this.parseSetDefinition();
       case TokenType.DECLARE: return this.parseDeclaration();
       case TokenType.CONSTANT: return this.parseConstant();
       case TokenType.INPUT: return this.parseInput();
@@ -407,11 +424,12 @@ export class Parser {
     this.expect(TokenType.COLON);
     if (this.peek().type === TokenType.ARRAY) return this.parseArrayDeclaration(name.value, name.line);
     const dt = this.advance();
-    const validDataTypes: string[] = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
-    if (!validDataTypes.includes(dt.type)) {
-      throw new Error(`Invalid data type '${dt.value}' for variable '${name.value}' at line ${name.line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN`);
+    // 支持内置类型和用户自定义类型（IDENTIFIER）
+    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
+    if (!builtinTypes.includes(dt.type) && dt.type !== TokenType.IDENTIFIER) {
+      throw new Error(`Invalid data type '${dt.value}' for variable '${name.value}' at line ${name.line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN or a user-defined type name`);
     }
-    return { type: 'VariableDeclaration', name: name.value, dataType: dt.type, line: name.line };
+    return { type: 'VariableDeclaration', name: name.value, dataType: dt.value, line: name.line };
   }
 
   private parseArrayDeclaration(name: string, line: number): ASTNode {
@@ -429,11 +447,96 @@ export class Parser {
     }
     this.expect(TokenType.RBRACKET); this.expect(TokenType.OF);
     const dt = this.advance();
-    const validDataTypes: string[] = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
-    if (!validDataTypes.includes(dt.type)) {
-      throw new Error(`Invalid data type '${dt.value}' for array '${name}' at line ${line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN`);
+    // 支持内置类型和用户自定义类型
+    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
+    if (!builtinTypes.includes(dt.type) && dt.type !== TokenType.IDENTIFIER) {
+      throw new Error(`Invalid array element type '${dt.value}' for array '${name}' at line ${line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN or a user-defined type name`);
     }
-    return { type: 'ArrayDeclaration', name, dimensions: dims, dataType: dt.type, line };
+    return { type: 'ArrayDeclaration', name, dimensions: dims, dataType: dt.value, line };
+  }
+
+  // ─── TYPE 声明 ───
+  // 支持:
+  //   TYPE MyType = (Val1, Val2, ...)        // 枚举类型
+  //   TYPE MyPtrType = ^BaseType            // 指针类型
+  //   TYPE MyRecType                        // 记录类型
+  //       DECLARE field1 : TYPE
+  //       DECLARE field2 : TYPE
+  //   ENDTYPE
+  private parseTypeDeclaration(): ASTNode {
+    const startTok = this.expect(TokenType.TYPE);
+    const typeNameTok = this.expect(TokenType.IDENTIFIER);
+    const typeName = typeNameTok.value;
+
+    // 检查是否有等号 → 枚举类型
+    if (this.peek().type === TokenType.EQUAL) {
+      this.advance(); // consume '='
+      this.expect(TokenType.LPAREN);
+      const values: string[] = [];
+      while (!this.match(TokenType.RPAREN)) {
+        const valTok = this.expect(TokenType.IDENTIFIER);
+        values.push(valTok.value);
+        if (!this.match(TokenType.COMMA)) {
+          this.expect(TokenType.RPAREN);
+          break;
+        }
+      }
+      this.expect(TokenType.ENDTYPE);
+      return { type: 'TypeDeclaration', name: typeName, kind: 'enum', values, line: startTok.line };
+    }
+
+    // 检查是否有 ^ → 指针类型
+    if (this.peek().type === TokenType.CARET) {
+      this.advance(); // consume '^'
+      const baseTypeTok = this.advance();
+      this.expect(TokenType.ENDTYPE);
+      return { type: 'TypeDeclaration', name: typeName, kind: 'pointer', baseType: baseTypeTok.value, line: startTok.line };
+    }
+
+    // 否则是记录类型
+    const fields: { name: string; dataType: string }[] = [];
+    while (this.peek().type !== TokenType.ENDTYPE) {
+      this.expect(TokenType.DECLARE);
+      const fieldNameTok = this.expect(TokenType.IDENTIFIER);
+      this.expect(TokenType.COLON);
+      const fieldTypeTok = this.advance();
+      fields.push({ name: fieldNameTok.value, dataType: fieldTypeTok.value });
+    }
+    this.expect(TokenType.ENDTYPE);
+    return { type: 'TypeDeclaration', name: typeName, kind: 'record', fields, line: startTok.line };
+  }
+
+  // ─── DEFINE set 声明 ───
+  // 支持: DEFINE Vowels ('A', 'E', 'I', 'O', 'U') : LetterSet
+  private parseSetDefinition(): ASTNode {
+    const startTok = this.expect(TokenType.DEFINE);
+    const nameTok = this.expect(TokenType.IDENTIFIER);
+    this.expect(TokenType.LPAREN);
+    const values: string[] = [];
+    while (!this.match(TokenType.RPAREN)) {
+      let valTok: Token;
+      if (this.peek().type === TokenType.STRING_LITERAL) {
+        valTok = this.advance();
+        values.push(valTok.value);
+      } else if (this.peek().type === TokenType.CHAR_LITERAL) {
+        valTok = this.advance();
+        values.push(valTok.value);
+      } else if (this.peek().type === TokenType.NUMBER) {
+        valTok = this.advance();
+        values.push(valTok.value);
+      } else {
+        valTok = this.expect(TokenType.IDENTIFIER);
+        values.push(valTok.value);
+      }
+      if (!this.match(TokenType.COMMA)) {
+        this.expect(TokenType.RPAREN);
+        break;
+      }
+    }
+    this.expect(TokenType.COLON);
+    const setTypeTok = this.advance();
+    this.expect(TokenType.ENDTYPE);
+    return { type: 'SetDefinition', name: nameTok.value, values, setType: setTypeTok.value, line: startTok.line };
   }
 
   private parseConstant(): ASTNode {
@@ -849,9 +952,21 @@ export class Parser {
         }
       }
       this.expect(TokenType.RBRACKET);
+      // 支持 .field 链式访问: arr[i].field
+      let target: ASTNode = { type: 'ArrayAccess', name: name.value, indices };
+      while (this.match(TokenType.DOT)) {
+        const fieldName = this.expect(TokenType.IDENTIFIER);
+        target = { type: 'FieldAccess', record: target, field: fieldName.value, line: fieldName.line };
+      }
       this.expect(TokenType.ASSIGN);
       const value = this.parseExpression();
-      return { type: 'Assignment', target: { type: 'ArrayAccess', name: name.value, indices }, value, line: name.line };
+      return { type: 'Assignment', target, value, line: name.line };
+    }
+    // 支持指针解引用赋值: MyPtr^ <- value
+    if (this.match(TokenType.CARET)) {
+      this.expect(TokenType.ASSIGN);
+      const value = this.parseExpression();
+      return { type: 'Assignment', target: { type: 'PointerDereference', name: name.value, line: name.line }, value, line: name.line };
     }
     if (this.match(TokenType.LPAREN)) {
       const args: ASTNode[] = [];
@@ -1070,7 +1185,13 @@ export class Parser {
           }
         }
         this.expect(TokenType.RBRACKET);
-        return { type: 'ArrayAccess', name: name.value, indices };
+        let expr: ASTNode = { type: 'ArrayAccess', name: name.value, indices };
+        // 支持链式 .field 访问: arr[i].field.subfield
+        while (this.match(TokenType.DOT)) {
+          const fieldName = this.expect(TokenType.IDENTIFIER);
+          expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+        }
+        return expr;
       }
       if (this.match(TokenType.LPAREN)) {
         const args: ASTNode[] = [];
@@ -1080,7 +1201,24 @@ export class Parser {
         }
         return { type: 'FunctionCall', name: name.value, args };
       }
-      return { type: 'Identifier', name: name.value };
+      let expr: ASTNode = { type: 'Identifier', name: name.value };
+      // 支持指针解引用: MyPtr^
+      if (this.match(TokenType.CARET)) {
+        expr = { type: 'PointerDereference', name: name.value, line: name.line };
+      }
+      // 支持链式字段访问: MyRec.field
+      while (this.match(TokenType.DOT)) {
+        const fieldName = this.expect(TokenType.IDENTIFIER);
+        expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+      }
+      return expr;
+    }
+
+    // 支持指针取地址表达式: ^MyVar
+    if (t.type === TokenType.CARET) {
+      this.advance();
+      const varName = this.expect(TokenType.IDENTIFIER);
+      return { type: 'AddressOf', name: varName.value, line: varName.line };
     }
 
     if (this.match(TokenType.LPAREN)) {
@@ -1128,6 +1266,13 @@ export class Interpreter {
   // 变量类型追踪，用于 REAL 输出格式化
   private variableTypes = new Map<string, string>();
 
+  // 用户自定义类型存储
+  private typeDefinitions = new Map<string, { kind: 'enum' | 'pointer' | 'record'; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }>();
+  // 指针变量存储: pointerName -> targetVariableName
+  private pointerVariables = new Map<string, string>();
+  // 集合定义存储: setName -> { values: string[], setType: string }
+  private setDefinitions = new Map<string, { values: string[]; setType: string }>();
+
   // Trace Table 追踪
   private traceLog: { line: number; variables: Record<string, unknown>; output: string }[] = [];
   private enableTrace = false;
@@ -1152,14 +1297,64 @@ export class Interpreter {
   getTraceTable(): TraceEntry[] { return this.traceTable; }
   getVariables(): Map<string, unknown> { return this.variables; }
   getVariableTypes(): Map<string, string> { return this.variableTypes; }
+  getTypeDefinitions(): Map<string, { kind: string; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }> { return this.typeDefinitions; }
+  getSetDefinitions(): Map<string, { values: string[]; setType: string }> { return this.setDefinitions; }
+  getPointerVariables(): Map<string, string> { return this.pointerVariables; }
   getArrays(): Map<string, { dims: { lower: number; upper: number }[]; data: unknown[] }> { return this.arrays; }
   
+  // 根据数据类型返回默认值
+  private getDefaultValue(dataType: string): unknown {
+    const dt = dataType.toUpperCase();
+    if (dt === 'INTEGER') return 0;
+    if (dt === 'REAL') return 0.0;
+    if (dt === 'CHAR') return '';
+    if (dt === 'STRING') return '';
+    if (dt === 'BOOLEAN') return false;
+    // 用户自定义记录类型
+    const typeDef = this.typeDefinitions.get(dataType);
+    if (typeDef && typeDef.kind === 'record' && typeDef.fields) {
+      const record: Record<string, unknown> = {};
+      for (const field of typeDef.fields) {
+        record[field.name] = this.getDefaultValue(field.dataType);
+      }
+      return record;
+    }
+    // 枚举类型默认值
+    if (typeDef && typeDef.kind === 'enum' && typeDef.values && typeDef.values.length > 0) {
+      return typeDef.values[0];
+    }
+    return null;
+  }
+
+  // 根据数据类型返回类型字符串（用于 variableTypes Map）
+  private getTypeString(dataType: string): string {
+    const dt = dataType.toUpperCase();
+    const builtin = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN'];
+    if (builtin.includes(dt)) return dt;
+    // 用户自定义类型，直接用类型名
+    if (this.typeDefinitions.has(dataType)) return dataType;
+    return dataType;
+  }
+
+  // ─── 类型检查：检查赋值目标是否是用户自定义记录类型字段 ───
+  private checkRecordFieldType(fieldDef: { name: string; dataType: string }, value: unknown, fieldPath: string): void {
+    const expectedType = this.getTypeString(fieldDef.dataType);
+    const valueType = this.inferType(value);
+    if (expectedType === valueType) return;
+    if (expectedType === 'REAL' && valueType === 'INTEGER') return;
+    throw this.runtimeError(`Type mismatch: cannot assign ${valueType} value to record field '${fieldPath}' (expected ${expectedType})`);
+  }
+
   reset(): void {
     this.variables.clear(); this.constants.clear(); this.arrays.clear();
     this.variableTypes.clear();
+    this.recordInstances.clear();
     this.output = []; this.currentIteration = 0; this.callDepth = 0; this.aborted = false;
     this.filePositions.clear(); this.openFiles.clear();
     this.traceTable = []; this.lastOutputLine = 0;
+    this.typeDefinitions.clear();
+    this.pointerVariables.clear();
+    this.setDefinitions.clear();
   }
 
   private recordTrace(line: number): void {
@@ -1213,47 +1408,80 @@ export class Interpreter {
       case 'FileRead': return this.executeFileRead(node);
       case 'FileWrite': return this.executeFileWrite(node);
       case 'FileClose': return this.executeFileClose(node);
-      case 'RandomizeStatement': return null; // RANDOMIZE is a no-op in this interpreter
+      case 'RandomizeStatement': return null;
+      case 'TypeDeclaration': return this.executeTypeDeclaration(node);
+      case 'SetDefinition': return this.executeSetDefinition(node);
       default: return this.evaluateExpression(node);
     }
   }
 
   private async executeProgram(node: any): Promise<void> {
     const stmts: any[] = node.statements;
-    for (const s of stmts) { if (s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') this.executeNode(s); }
+    // Pass 1: 先注册所有 TYPE 和 SET DEFINE 声明
     for (const s of stmts) {
-      if (s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') continue;
+      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition') this.executeNode(s);
+    }
+    // Pass 2: 再注册过程和函数
+    for (const s of stmts) {
+      if (s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') this.executeNode(s);
+    }
+    // Pass 3: 执行主程序语句
+    for (const s of stmts) {
+      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition' ||
+          s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') continue;
       const result = await this.executeNode(s);
       if (result instanceof ReturnSignal) throw result;
     }
   }
 
   private executeVariableDeclaration(node: any): void {
-    const defaults: Record<string, unknown> = { INTEGER: 0, REAL: 0.0, CHAR: '', STRING: '', BOOLEAN: false };
     const name = node.name as string;
-    const dataTypeToken = node.dataType as string;
-    const value = defaults[dataTypeToken] ?? null;
+    const dataType = node.dataType as string;
+    const typeStr = this.getTypeString(dataType);
+    const value = this.getDefaultValue(dataType);
     this.variables.set(name, value);
-    this.variableTypes.set(name, dataTypeToken);
+    this.variableTypes.set(name, typeStr);
+    // 注册记录实例，用于类型推断
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      this.recordInstances.set(value, typeStr);
+    }
+    if (!this.typeDefinitions.has(dataType)) {
+      const typeDef = this.findTypeDefinition(dataType);
+      if (typeDef) this.typeDefinitions.set(dataType, typeDef);
+    }
     this.recordTrace(node.line || 0);
+  }
+
+  private findTypeDefinition(typeName: string): { kind: 'enum' | 'pointer' | 'record'; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] } | null {
+    return this.typeDefinitions.get(typeName) ?? null;
   }
   
   private executeArrayDeclaration(node: any): void {
     const name = node.name as string;
     const dims = node.dimensions as { lower: number; upper: number }[];
     const dataType = node.dataType as string;
-    
+
     let totalSize = 1;
     for (const dim of dims) {
       totalSize *= (dim.upper - dim.lower + 1);
     }
-    
-    const defaults: Record<string, unknown> = { INTEGER: 0, REAL: 0.0, CHAR: '', STRING: '', BOOLEAN: false };
-    const defaultVal = defaults[dataType] ?? null;
-    const data = new Array(totalSize).fill(defaultVal);
-    
+
+    const defaultVal = this.getDefaultValue(dataType);
+    const data = new Array(totalSize).fill(null).map(() => this.deepClone(defaultVal));
+
     this.arrays.set(name, { dims, data });
-    this.variableTypes.set(name, `ARRAY_OF_${dataType}`);
+    this.variableTypes.set(name, `ARRAY_OF_${this.getTypeString(dataType)}`);
+  }
+
+  private deepClone(value: unknown): unknown {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(v => this.deepClone(v));
+    const record: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      record[k] = this.deepClone(v);
+    }
+    return record;
   }
   
   private async executeConstantDeclaration(node: any): Promise<void> {
@@ -1266,8 +1494,32 @@ export class Interpreter {
   private async executeAssignment(node: any): Promise<void> {
     const target = node.target as any;
     const value = await this.evaluateExpression(node.value);
-    
+
+    if (target.type === 'PointerDereference') {
+      // ptr^ <- value: 把值写入指针指向的变量
+      const targetVarName = this.pointerVariables.get(target.name);
+      if (!targetVarName) this.runtimeError(`Pointer '${target.name}' does not point to any variable`);
+      if (!this.variableTypes.has(targetVarName)) this.runtimeError(`Undefined variable '${targetVarName}'`);
+      this.checkTypeCompatibility(value, targetVarName);
+      this.variables.set(targetVarName, value);
+      this.recordTrace(node.line || 0);
+      return;
+    }
+
+    if (target.type === 'FieldAccess') {
+      // rec.field <- value
+      await this.executeFieldAccessAssignment(target, value);
+      this.recordTrace(node.line || 0);
+      return;
+    }
+
     if (target.type === 'Identifier') {
+      // 处理指针赋值: ptr <- ^MyVar
+      if (typeof value === 'object' && value !== null && '__pointerTarget' in value) {
+        this.pointerVariables.set(target.name, (value as any).__pointerTarget);
+        this.recordTrace(node.line || 0);
+        return;
+      }
       if (!this.variableTypes.has(target.name) && !this.constants.has(target.name)) {
         throw this.runtimeError(`Undefined variable '${target.name}'`);
       }
@@ -1275,7 +1527,7 @@ export class Interpreter {
         throw this.runtimeError(`Cannot reassign constant '${target.name}'`);
       }
       this.checkTypeCompatibility(value, target.name);
-      this.variables.set(target.name, value);
+      this.variables.set(target.name, this.deepClone(value));
     } else if (target.type === 'ArrayAccess') {
       const arrInfo = this.arrays.get(target.name);
       if (arrInfo) {
@@ -1285,10 +1537,63 @@ export class Interpreter {
         }
         const flatIndex = this.getFlatIndex(arrInfo.dims, indices);
         this.checkArrayElementType(value, target.name);
-        arrInfo.data[flatIndex] = value;
+        arrInfo.data[flatIndex] = this.deepClone(value);
       }
     }
     this.recordTrace(node.line || 0);
+  }
+
+  private async executeFieldAccessAssignment(target: any, value: unknown): Promise<void> {
+    // 递归解析 FieldAccess: a.b.c <- value
+    // 找到最外层的 base（可能是 Identifier 或 ArrayAccess），逐步访问到目标字段
+    const base = target.record;
+    let current = base;
+    const fieldNames: string[] = [];
+    while (current.type === 'FieldAccess') {
+      fieldNames.unshift(current.field as string);
+      current = current.record;
+    }
+    fieldNames.push(target.field as string);
+
+    if (current.type === 'Identifier') {
+      const varVal = this.variables.get(current.name as string);
+      if (typeof varVal !== 'object' || varVal === null) this.runtimeError(`Variable '${current.name}' is not a record type`);
+      const record = varVal as Record<string, unknown>;
+      const targetField = fieldNames[fieldNames.length - 1];
+      const typeDef = this.typeDefinitions.get(this.variableTypes.get(current.name as string) || '');
+      if (typeDef && typeDef.kind === 'record' && typeDef.fields) {
+        const fieldDef = typeDef.fields.find((f: any) => f.name === targetField);
+        if (fieldDef) this.checkRecordFieldType(fieldDef, value, `${current.name}.${targetField}`);
+      }
+      record[targetField] = this.deepClone(value);
+      this.variables.set(current.name as string, record);
+    } else if (current.type === 'ArrayAccess') {
+      const arrInfo = this.arrays.get(current.name as string);
+      if (!arrInfo) this.runtimeError(`Undefined array '${current.name}'`);
+      const indices = [];
+      for (const idx of current.indices as any[]) {
+        indices.push(await this.evaluateExpression(idx) as number);
+      }
+      const flatIndex = this.getFlatIndex(arrInfo.dims, indices);
+      const arr = arrInfo.data[flatIndex];
+      if (typeof arr !== 'object' || arr === null) this.runtimeError(`Array element at [${indices.join(',')}] is not a record type`);
+      const record = arr as Record<string, unknown>;
+      const targetField = fieldNames[fieldNames.length - 1];
+      record[targetField] = this.deepClone(value);
+      arrInfo.data[flatIndex] = record;
+    } else {
+      this.runtimeError(`Cannot assign to field access on '${current.type}'`);
+    }
+  }
+
+  private executeTypeDeclaration(node: any): void {
+    const { name, kind, values, baseType, fields } = node;
+    this.typeDefinitions.set(name, { kind, values, baseType, fields });
+  }
+
+  private executeSetDefinition(node: any): void {
+    const { name, values, setType } = node;
+    this.setDefinitions.set(name, { values, setType });
   }
   
   private checkTypeCompatibility(value: unknown, varName: string): void {
@@ -1310,19 +1615,24 @@ export class Interpreter {
     }
   }
 
+  // 运行时记录实例 → 类型名 的映射（用于类型推断）
+  private recordInstances = new Map<object, string>();
+
   private inferType(value: unknown): string {
     if (typeof value === 'number') return Number.isInteger(value) ? 'INTEGER' : 'REAL';
     if (typeof value === 'string') return value.length === 1 ? 'CHAR' : 'STRING';
     if (typeof value === 'boolean') return 'BOOLEAN';
+    if (typeof value === 'object' && value !== null) {
+      if (this.recordInstances.has(value)) return this.recordInstances.get(value)!;
+      if (Array.isArray(value)) return 'ARRAY';
+      return 'RECORD';
+    }
     return 'UNKNOWN';
   }
 
   private isTypeCompatible(targetType: string, valueType: string, value: unknown, name: string, isArray: boolean): boolean {
-    // Same type is always OK
     if (targetType === valueType) return true;
-    // INTEGER value can be assigned to REAL (widening)
     if (targetType === 'REAL' && valueType === 'INTEGER') return true;
-    // All other conversions are implicit and not allowed in pseudocode
     return false;
   }
 
@@ -1405,6 +1715,22 @@ export class Interpreter {
       return str;
     }
     if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+    if (typeof value === 'object' && value !== null) {
+      // 指针解引用结果
+      if (this.recordInstances.has(value)) {
+        const typeName = this.recordInstances.get(value)!;
+        const rec = value as Record<string, unknown>;
+        const fields = Object.entries(rec).map(([k, v]) => `${k}: ${this.formatValue(v)}`).join(', ');
+        return `${typeName}(${fields})`;
+      }
+      // 指针值（未解引用）
+      if ('__pointerTarget' in value) return `^${(value as any).__pointerTarget}`;
+      // 集合
+      if (Array.isArray(value)) {
+        return `{${(value as string[]).join(', ')}}`;
+      }
+      return String(value);
+    }
     return String(value ?? '');
   }
 
@@ -1754,12 +2080,39 @@ export class Interpreter {
         }
         return null;
       }
+      case 'FieldAccess': return this.evaluateFieldAccess(node);
+      case 'PointerDereference': {
+        const targetVarName = this.pointerVariables.get(node.name);
+        if (!targetVarName) this.runtimeError(`Pointer '${node.name}' does not point to any variable`);
+        if (this.variables.has(targetVarName)) return this.variables.get(targetVarName);
+        if (this.constants.has(targetVarName)) return this.constants.get(targetVarName);
+        this.runtimeError(`Undefined variable '${targetVarName}'`);
+      }
+      case 'AddressOf': {
+        // ^MyVar — 返回指向该变量的指针（将指针变量指向目标变量）
+        const varName = node.name as string;
+        // 检查目标变量是否存在
+        if (!this.variableTypes.has(varName)) this.runtimeError(`Undefined variable '${varName}'`);
+        // 在指针变量中建立映射（需要在 DECLARE MyPtr : TIntPointer 之后才能用）
+        // 这里我们把 "指向 varName" 的关系存下来
+        // 注意：AddressOf 是表达式，不是声明式赋值，所以我们需要把它作为一个值返回
+        // 实际上，^MyVar 作为 RHS 时，我们创建一个代理对象
+        return { __pointerTarget: varName };
+      }
       case 'FunctionCall': return this.executeFunctionCall(node);
       case 'ProcedureCall': return this.executeProcedureCall(node);
       case 'BinaryExpression': return this.evalBinary(node);
       case 'UnaryExpression': return this.evalUnary(node);
     }
     return null;
+  }
+
+  private async evaluateFieldAccess(node: any): Promise<unknown> {
+    const base = await this.evaluateExpression(node.record);
+    if (typeof base !== 'object' || base === null) this.runtimeError(`Cannot access field on non-record value`);
+    const record = base as Record<string, unknown>;
+    if (!(node.field in record)) this.runtimeError(`Record has no field '${node.field}'`);
+    return record[node.field];
   }
 
   private async evalBinary(node: any): Promise<unknown> {
@@ -1920,5 +2273,14 @@ export class ALevelParser {
   }
   public getArrays(): Record<string, { dims: { lower: number; upper: number }[]; data: unknown[] }> {
     return Object.fromEntries(this.interpreter.getArrays());
+  }
+  public getTypeDefinitions(): Record<string, { kind: string; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }> {
+    return Object.fromEntries(this.interpreter.getTypeDefinitions());
+  }
+  public getSetDefinitions(): Record<string, { values: string[]; setType: string }> {
+    return Object.fromEntries(this.interpreter.getSetDefinitions());
+  }
+  public getPointerVariables(): Record<string, string> {
+    return Object.fromEntries(this.interpreter.getPointerVariables());
   }
 }

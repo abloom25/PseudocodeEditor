@@ -66,16 +66,16 @@ export function registerPseudocodeLanguage(monaco: MonacoType) {
       { open: '"', close: '"' }, { open: "'", close: "'" }
     ],
     indentationRules: {
-      increaseIndentPattern: /^\s*(IF|THEN|ELSE|FOR|WHILE|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE)\b/i,
-      decreaseIndentPattern: /^\s*(ENDIF|ELSE|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|OTHERWISE)\b/i,
+      increaseIndentPattern: /^\s*(IF|THEN|ELSE|FOR|WHILE|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE|TYPE|DEFINE)\b/i,
+      decreaseIndentPattern: /^\s*(ENDIF|ELSE|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|ENDTYPE|OTHERWISE)\b/i,
     },
     onEnterRules: [
       {
-        beforeText: /^\s*(IF|THEN|ELSE|FOR\s.*\bTO\b|WHILE\s.*\bDO\b|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE)\s*$/i,
+        beforeText: /^\s*(IF|THEN|ELSE|FOR\s.*\bTO\b|WHILE\s.*\b(DO)?\b|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE|TYPE)\s*$/i,
         action: { indentAction: (monaco as { languages: { IndentAction: { Indent: number } } }).languages.IndentAction.Indent },
       },
       {
-        beforeText: /^\s*(ENDIF|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT)\s*$/i,
+        beforeText: /^\s*(ENDIF|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|ENDTYPE|OTHERWISE)\s*$/i,
         action: { indentAction: (monaco as { languages: { IndentAction: { Outdent: number } } }).languages.IndentAction.Outdent },
       },
       {

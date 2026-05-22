@@ -55,7 +55,7 @@
     ]
   },
   "alevel-9618": {
-    "extraKeywords": [],
+    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET"],
     "extraFunctions": [
       { "name": "MID(string, start, length)", "desc": "提取子字符串" },
       { "name": "RIGHT(string, length)", "desc": "从右侧提取" },
@@ -72,6 +72,20 @@
     "extraFunctionsProcedures": [
       "CALL ProcedureName(args)  // 必须使用 CALL"
     ],
+    "userDefinedTypes": [
+      "TYPE MyEnum = (Val1, Val2) ... ENDTYPE  // 枚举类型",
+      "TYPE MyPtr = ^BaseType ... ENDTYPE       // 指针类型",
+      "TYPE MyRecord ... ENDTYPE                 // 记录类型",
+      "  DECLARE field1 : TYPE",
+      "  DECLARE field2 : TYPE",
+      "DECLARE var : MyRecord                   // 声明记录变量",
+      "DECLARE arr : ARRAY[1:10] OF MyRecord    // 记录数组",
+      "var.field <- value                       // 字段访问赋值",
+      "arr[i].field                              // 数组记录字段访问",
+      "MyPtr <- ^var                            // 指针赋值（取地址）",
+      "value <- MyPtr^                          // 指针解引用",
+      "DEFINE MySet ('A','E') : LetterSet ... ENDTYPE  // 集合定义"
+    ],
     "differences": [
       { "keyword": "CONSTANT", "diff": "使用 `=` 而非 `<-`" },
       { "keyword": "WHILE", "diff": "不使用 `DO`" },
@@ -79,7 +93,11 @@
       { "keyword": "CASE", "diff": "支持 `TO` 范围: `1 TO 5 : ...`" },
       { "keyword": "MID()", "diff": "替代 SUBSTRING()" },
       { "keyword": "RAND(x)", "diff": "参数指定范围" },
-      { "keyword": "INT(x)", "diff": "取整函数" }
+      { "keyword": "INT(x)", "diff": "取整函数" },
+      { "keyword": "TYPE", "diff": "用户自定义类型（枚举、指针、记录）" },
+      { "keyword": "DEFINE/SET", "diff": "集合定义" },
+      { "keyword": ". (点号)", "diff": "记录字段访问，如 `rec.field`" },
+      { "keyword": "^ (脱字符)", "diff": "指针解引用，如 `ptr^` 或 `^var`" }
     ]
   }
 }

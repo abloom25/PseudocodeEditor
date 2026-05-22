@@ -39,7 +39,11 @@
       "READFILE": "### 从文件读取\n\n**语法**: `READFILE \"filename\", variable`",
       "WRITEFILE": "### 写入文件\n\n**语法**: `WRITEFILE \"filename\", expression`",
       "CLOSEFILE": "### 关闭文件\n\n**语法**: `CLOSEFILE \"filename\"`",
-      "EOF": "### 文件结束检测\n\n**语法**: `EOF(\"filename\")`\n\n**返回值**: `BOOLEAN`"
+      "EOF": "### 文件结束检测\n\n**语法**: `EOF(\"filename\")`\n\n**返回值**: `BOOLEAN`",
+      "TYPE": "### TYPE - 用户自定义类型 (A-Level)\n\n**语法**:\n```pseudocode\nTYPE MyType = (Val1, Val2, ...)    // 枚举类型\nTYPE MyPtr = ^BaseType            // 指针类型\nTYPE MyRecord                     // 记录类型\n    DECLARE field1 : TYPE\n    DECLARE field2 : TYPE\nENDTYPE\n```\n\n用于定义枚举、指针或记录类型。",
+      "ENDTYPE": "### ENDTYPE - 类型定义结束\n\n标记 `TYPE` 语句的结束。",
+      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\nENDTYPE\n```\n\n用于定义集合常量。",
+      "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。"
     },
     "types": {
       "INTEGER": "### 📊 整数类型\n\n**范围**: -2,147,483,648 到 2,147,483,647\n\n**示例**:\n```pseudocode\nDECLARE Count : INTEGER\nCount <- 42\nCount <- -10\nCount <- 0\n```",
@@ -71,7 +75,11 @@
     "keywords": {
       "CONSTANT": "### 常量声明\n\n**语法**: `CONSTANT name = value`\n\n**示例**:\n```pseudocode\nCONSTANT Pi = 3.14159\nCONSTANT MaxValue = 100\n```",
       "WHILE": "### 条件前置循环\n\n**语法**:\n```pseudocode\nWHILE condition\n    // body\nENDWHILE\n```\n\n注意：A-Level 不使用 DO 关键字。",
-      "CALL": "### 调用过程\n\n**语法**: `CALL <ProcedureName>(Value1, Value2...)`\n\nA-Level 必须使用 CALL 关键字调用过程。\n\n**示例**:\n```pseudocode\nCALL PrintMessage(\"Hello\")\nCALL AddNumbers(a, b)\n```"
+      "CALL": "### 调用过程\n\n**语法**: `CALL <ProcedureName>(Value1, Value2...)`\n\nA-Level 必须使用 CALL 关键字调用过程。\n\n**示例**:\n```pseudocode\nCALL PrintMessage(\"Hello\")\nCALL AddNumbers(a, b)\n```",
+      "TYPE": "### TYPE - 用户自定义类型 (A-Level)\n\n**语法**:\n```pseudocode\nTYPE MyType = (Val1, Val2, ...)    // 枚举类型\nTYPE MyPtr = ^BaseType              // 指针类型\nTYPE MyRecord                      // 记录类型\n    DECLARE field1 : TYPE\n    DECLARE field2 : TYPE\nENDTYPE\n```\n\n用于定义枚举、指针或记录类型。",
+      "ENDTYPE": "### ENDTYPE - 类型定义结束\n\n标记 `TYPE` 语句的结束。",
+      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\nENDTYPE\n```\n\n用于定义集合常量。",
+      "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。"
     },
     "builtins": {
       "MID": "### ✂️ MID - 提取子字符串 (A-Level)\n\n**语法**: `MID(string, start, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nMID(\"Hello\", 2, 3) → \"ell\"\nMID(\"Hello World\", 1, 5) → \"Hello\"\n```",

@@ -9,12 +9,14 @@ export interface DeclaredConstant { name: string; type: string; value: string; l
 export interface DeclaredFunction { name: string; params: string[]; returnType: string; line: number; }
 export interface DeclaredProcedure { name: string; params: string[]; line: number; }
 export interface DeclaredArray { name: string; dimensions: string; elementType: string; line: number; }
+export interface DeclaredType { name: string; kind: string; line: number; }
 export interface DeclaredSymbols {
   variables: DeclaredVariable[];
   constants: DeclaredConstant[];
   functions: DeclaredFunction[];
   procedures: DeclaredProcedure[];
   arrays: DeclaredArray[];
+  types: DeclaredType[];
 }
 
 export interface UIThemeColors {

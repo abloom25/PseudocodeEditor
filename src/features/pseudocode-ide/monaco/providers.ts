@@ -123,6 +123,16 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           range,
         });
       }
+      for (const t of declaredSymbols.types) {
+        suggestions.push({
+          label: t.name,
+          kind: m.languages.CompletionItemKind.TypeParameter,
+          insertText: t.name,
+          detail: `TYPE (${t.kind})`,
+          documentation: `User-defined type \`${t.name}\` (${t.kind}) declared on line ${t.line}`,
+          range,
+        });
+      }
 
       const allSnippets: Record<string, { body: string[]; description: string }> = {
         ...common.snippets,
@@ -208,6 +218,14 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
           contents: [{ value: `### 📋 Array: \`${arrMatch.name}\`\n\n**Dimensions**: \`${arrMatch.dimensions}\`\n**Element Type**: \`${arrMatch.elementType}\`\n**Declared on line**: ${arrMatch.line}\n\nDeclared with \`DECLARE ${arrMatch.name} : ARRAY${arrMatch.dimensions} OF ${arrMatch.elementType}\`` }],
+        };
+      }
+
+      const typeMatch = declaredSymbols.types.find(t => t.name === word.word);
+      if (typeMatch) {
+        return {
+          range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
+          contents: [{ value: `### 🏷️ User-defined Type: \`${typeMatch.name}\`\n\n**Kind**: \`${typeMatch.kind}\`\n**Declared on line**: ${typeMatch.line}` }],
         };
       }
 

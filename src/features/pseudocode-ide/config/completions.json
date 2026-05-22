@@ -10,7 +10,8 @@
       "RETURNS", "RETURN", "ARRAY",
       "OPENFILE", "CALL", "READFILE", "WRITEFILE", "CLOSEFILE",
       "TRUE", "FALSE", "AND", "OR", "NOT",
-      "BYREF", "BYVAL", "READ", "WRITE"
+      "BYREF", "BYVAL", "READ", "WRITE",
+      "TYPE", "ENDTYPE", "DEFINE", "SET"
     ],
     "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
     "functions": [
@@ -90,7 +91,7 @@
     }
   },
   "alevel-9618": {
-    "extraKeywords": [],
+    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET"],
     "extraFunctions": ["MID", "RIGHT", "RAND", "INT"],
     "extraSnippets": {
       "WHILE-ENDWHILE": {
@@ -100,6 +101,30 @@
       "WHILE-EOF": {
         "body": ["WHILE NOT EOF(${1:\"filename.txt\"})", "\t${2:// read and process file}", "ENDWHILE"],
         "description": "Read file until EOF"
+      },
+      "TYPE-ENUM": {
+        "body": ["TYPE ${1:MyEnum} = (${2:Value1}, ${3:Value2}, ${4:Value3})", "ENDTYPE"],
+        "description": "Enumerated type (A-Level)"
+      },
+      "TYPE-POINTER": {
+        "body": ["TYPE ${1:MyPointer} = ^${2:BaseType}", "ENDTYPE"],
+        "description": "Pointer type (A-Level)"
+      },
+      "TYPE-RECORD": {
+        "body": ["TYPE ${1:MyRecord}", "\tDECLARE ${2:field1} : ${3:STRING}", "\tDECLARE ${4:field2} : ${5:INTEGER}", "ENDTYPE"],
+        "description": "Record type (A-Level)"
+      },
+      "DEFINE-SET": {
+        "body": ["DEFINE ${1:MySet} (${2:'A'}, ${3:'B'}, ${4:'C'}) : ${5:LetterSet}", "ENDTYPE"],
+        "description": "Set definition (A-Level)"
+      },
+      "DECLARE-RECORD": {
+        "body": ["DECLARE ${1:name} : ${2:MyRecord}"],
+        "description": "Declare record variable (A-Level)"
+      },
+      "DECLARE-ARRAY-OF-RECORD": {
+        "body": ["DECLARE ${1:name} : ARRAY[${2:1}:${3:10}] OF ${4:MyRecord}"],
+        "description": "Declare array of record (A-Level)"
       }
     }
   }
