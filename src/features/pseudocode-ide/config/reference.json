@@ -1,6 +1,6 @@
 {
   "common": {
-    "dataTypes": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
+    "dataTypes": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN", "DATE"],
     "functions": [
       { "name": "LENGTH(string)", "desc": "返回字符串长度" },
       { "name": "LCASE(string)", "desc": "转换为小写" },
@@ -25,8 +25,13 @@
     "fileOperations": [
       "OPENFILE filename FOR READ",
       "OPENFILE filename FOR WRITE",
+      "OPENFILE filename FOR APPEND",
+      "OPENFILE filename FOR RANDOM",
       "READFILE filename, variable",
       "WRITEFILE filename, value",
+      "SEEK filename, position",
+      "GETRECORD filename, variable",
+      "PUTRECORD filename, variable",
       "CLOSEFILE filename"
     ],
     "functionsProcedures": [
@@ -55,7 +60,7 @@
     ]
   },
   "alevel-9618": {
-    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET"],
+    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER", "ELSEIF", "ENDFOR"],
     "extraFunctions": [
       { "name": "MID(string, start, length)", "desc": "提取子字符串" },
       { "name": "RIGHT(string, length)", "desc": "从右侧提取" },
@@ -76,6 +81,7 @@
       "TYPE MyEnum = (Val1, Val2) ... ENDTYPE  // 枚举类型",
       "TYPE MyPtr = ^BaseType ... ENDTYPE       // 指针类型",
       "TYPE MyRecord ... ENDTYPE                 // 记录类型",
+      "TYPE DateOfBirth : DATE                  // 日期类型",
       "  DECLARE field1 : TYPE",
       "  DECLARE field2 : TYPE",
       "DECLARE var : MyRecord                   // 声明记录变量",
@@ -84,7 +90,12 @@
       "arr[i].field                              // 数组记录字段访问",
       "MyPtr <- ^var                            // 指针赋值（取地址）",
       "value <- MyPtr^                          // 指针解引用",
-      "DEFINE MySet ('A','E') : LetterSet ... ENDTYPE  // 集合定义"
+      "DEFINE MySet ('A','E') : LetterSet ... ENDTYPE  // 集合定义",
+      "CLASS MyClass ... ENDCLASS                // 类定义",
+      "PUBLIC/PRIVATE 成员                      // 访问控制",
+      "object <- NEW MyClass(args)               // 创建对象",
+      "object.Method(args)                       // 方法调用",
+      "SUPER.Method(args)                        // 调用父类方法"
     ],
     "differences": [
       { "keyword": "CONSTANT", "diff": "使用 `=` 而非 `<-`" },
@@ -97,7 +108,13 @@
       { "keyword": "TYPE", "diff": "用户自定义类型（枚举、指针、记录）" },
       { "keyword": "DEFINE/SET", "diff": "集合定义" },
       { "keyword": ". (点号)", "diff": "记录字段访问，如 `rec.field`" },
-      { "keyword": "^ (脱字符)", "diff": "指针解引用，如 `ptr^` 或 `^var`" }
+      { "keyword": "^ (脱字符)", "diff": "指针解引用，如 `ptr^` 或 `^var`" },
+      { "keyword": "ELSEIF", "diff": "多分支 IF 条件" },
+      { "keyword": "ENDFOR", "diff": "A-Level 可使用 ENDFOR 结束 FOR 循环" },
+      { "keyword": "APPEND", "diff": "追加写文件模式" },
+      { "keyword": "RANDOM/SEEK/GETRECORD/PUTRECORD", "diff": "随机访问记录文件" },
+      { "keyword": "CLASS", "diff": "面向对象类定义" },
+      { "keyword": "NEW/SUPER/INHERITS", "diff": "对象创建、父类调用与继承" }
     ]
   }
 }

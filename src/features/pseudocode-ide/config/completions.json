@@ -2,18 +2,20 @@
   "common": {
     "keywords": [
       "DECLARE", "CONSTANT", "INPUT", "OUTPUT",
-      "IF", "THEN", "ELSE", "ENDIF",
+      "IF", "THEN", "ELSE", "ELSEIF", "ENDIF",
       "CASE", "OF", "OTHERWISE", "ENDCASE",
-      "FOR", "TO", "STEP", "NEXT",
+      "FOR", "TO", "STEP", "NEXT", "ENDFOR",
       "REPEAT", "UNTIL", "WHILE", "ENDWHILE",
       "PROCEDURE", "FUNCTION", "ENDPROCEDURE", "ENDFUNCTION",
       "RETURNS", "RETURN", "ARRAY",
       "OPENFILE", "CALL", "READFILE", "WRITEFILE", "CLOSEFILE",
       "TRUE", "FALSE", "AND", "OR", "NOT",
-      "BYREF", "BYVAL", "READ", "WRITE",
-      "TYPE", "ENDTYPE", "DEFINE", "SET"
+      "BYREF", "BYVAL", "READ", "WRITE", "APPEND", "RANDOM",
+      "TYPE", "ENDTYPE", "DEFINE", "SET", "DATE",
+      "SEEK", "GETRECORD", "PUTRECORD",
+      "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER"
     ],
-    "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
+    "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN", "DATE"],
     "functions": [
       "LENGTH", "LCASE", "UCASE", "ROUND", "DIV", "MOD", "EOF"
     ],
@@ -91,7 +93,7 @@
     }
   },
   "alevel-9618": {
-    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET"],
+    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER", "ELSEIF", "ENDFOR"],
     "extraFunctions": ["MID", "RIGHT", "RAND", "INT"],
     "extraSnippets": {
       "WHILE-ENDWHILE": {
@@ -125,6 +127,38 @@
       "DECLARE-ARRAY-OF-RECORD": {
         "body": ["DECLARE ${1:name} : ARRAY[${2:1}:${3:10}] OF ${4:MyRecord}"],
         "description": "Declare array of record (A-Level)"
+      },
+      "OPENFILE-APPEND": {
+        "body": ["OPENFILE ${1:\"filename.txt\"} FOR APPEND"],
+        "description": "Open file for appending"
+      },
+      "OPENFILE-RANDOM": {
+        "body": ["OPENFILE ${1:\"records.dat\"} FOR RANDOM"],
+        "description": "Open random-access record file"
+      },
+      "SEEK": {
+        "body": ["SEEK ${1:\"records.dat\"}, ${2:1}"],
+        "description": "Move to a random file record position"
+      },
+      "GETRECORD": {
+        "body": ["GETRECORD ${1:\"records.dat\"}, ${2:recordVariable}"],
+        "description": "Read record from random file"
+      },
+      "PUTRECORD": {
+        "body": ["PUTRECORD ${1:\"records.dat\"}, ${2:recordVariable}"],
+        "description": "Write record to random file"
+      },
+      "CLASS": {
+        "body": ["CLASS ${1:ClassName}", "\tPRIVATE ${2:FieldName} : ${3:STRING}", "\tPUBLIC PROCEDURE NEW(${4:value} : ${3:STRING})", "\t\t${2:FieldName} <- ${4:value}", "\tENDPROCEDURE", "ENDCLASS"],
+        "description": "Class with constructor"
+      },
+      "CLASS-INHERITS": {
+        "body": ["CLASS ${1:ChildClass} INHERITS ${2:ParentClass}", "\tPRIVATE ${3:FieldName} : ${4:STRING}", "\tPUBLIC PROCEDURE NEW(${5:value} : ${4:STRING})", "\t\tSUPER.NEW(${6:parentValue})", "\t\t${3:FieldName} <- ${5:value}", "\tENDPROCEDURE", "ENDCLASS"],
+        "description": "Class inheritance with SUPER constructor call"
+      },
+      "NEW-OBJECT": {
+        "body": ["${1:objectName} <- NEW ${2:ClassName}(${3:args})"],
+        "description": "Create object"
       }
     }
   }

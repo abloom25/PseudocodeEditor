@@ -1,23 +1,26 @@
 {
   "keywords": [
     "DECLARE", "CONSTANT", "INPUT", "OUTPUT",
-    "IF", "THEN", "ELSE", "ENDIF",
+    "IF", "THEN", "ELSE", "ELSEIF", "ENDIF",
     "CASE", "OF", "OTHERWISE", "ENDCASE",
-    "FOR", "TO", "STEP", "NEXT",
+    "FOR", "TO", "STEP", "NEXT", "ENDFOR",
     "REPEAT", "UNTIL", "WHILE", "DO", "ENDWHILE",
     "PROCEDURE", "FUNCTION", "ENDPROCEDURE", "ENDFUNCTION",
     "RETURNS", "RETURN", "ARRAY", "AND", "OR", "NOT",
     "TRUE", "FALSE",
     "OPENFILE", "CALL", "READFILE", "WRITEFILE", "CLOSEFILE",
-    "TYPE", "ENDTYPE", "DEFINE", "SET"
+    "TYPE", "ENDTYPE", "DEFINE", "SET",
+    "APPEND", "SEEK", "GETRECORD", "PUTRECORD",
+    "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER"
   ],
-  "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
+  "typeKeywords": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN", "DATE"],
   "builtins": ["LENGTH", "LCASE", "UCASE", "SUBSTRING", "MID", "RIGHT", "ROUND", "RANDOM", "RAND", "DIV", "MOD", "EOF", "INT"],
   "igcse-specific": {
     "keywords": ["DO"],
     "builtins": ["SUBSTRING", "RANDOM"]
   },
   "alevel-specific": {
+    "keywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER", "ELSEIF", "ENDFOR"],
     "builtins": ["MID", "RIGHT", "RAND", "INT"]
   }
 }

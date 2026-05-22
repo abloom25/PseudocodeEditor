@@ -20,7 +20,7 @@
 
 // ─── Return 控制流 ───
 class ReturnSignal {
-  constructor(public value: unknown) {}
+  constructor(public value: unknown) { }
 }
 
 // ─── Token 类型 ───
@@ -29,9 +29,9 @@ export enum TokenType {
   INTEGER = 'INTEGER', REAL = 'REAL', CHAR = 'CHAR', STRING = 'STRING', BOOLEAN = 'BOOLEAN', DATE = 'DATE',
   // 关键字
   DECLARE = 'DECLARE', CONSTANT = 'CONSTANT', INPUT = 'INPUT', OUTPUT = 'OUTPUT',
-  IF = 'IF', THEN = 'THEN', ELSE = 'ELSE', ENDIF = 'ENDIF',
+  IF = 'IF', THEN = 'THEN', ELSE = 'ELSE', ELSEIF = 'ELSEIF', ENDIF = 'ENDIF',
   CASE = 'CASE', OF = 'OF', OTHERWISE = 'OTHERWISE', ENDCASE = 'ENDCASE',
-  FOR = 'FOR', TO = 'TO', STEP = 'STEP', NEXT = 'NEXT',
+  FOR = 'FOR', TO = 'TO', STEP = 'STEP', NEXT = 'NEXT', ENDFOR = 'ENDFOR',
   REPEAT = 'REPEAT', UNTIL = 'UNTIL', WHILE = 'WHILE', DO = 'DO', ENDWHILE = 'ENDWHILE',
   PROCEDURE = 'PROCEDURE', FUNCTION = 'FUNCTION',
   ENDPROCEDURE = 'ENDPROCEDURE', ENDFUNCTION = 'ENDFUNCTION',
@@ -95,7 +95,7 @@ export type ASTNodeType =
   | 'MethodCall'          // object.method(args)
   | 'SuperMethodCall';    // SUPER.method(args)
 
-export interface ASTNode { type: ASTNodeType; [key: string]: unknown; }
+export interface ASTNode { type: ASTNodeType;[key: string]: unknown; }
 
 // ════════════════════════════════════════════════════════════════
 //  Lexer
@@ -111,9 +111,9 @@ export class Lexer {
     STRING: TokenType.STRING, BOOLEAN: TokenType.BOOLEAN, DATE: TokenType.DATE,
     DECLARE: TokenType.DECLARE, CONSTANT: TokenType.CONSTANT,
     INPUT: TokenType.INPUT, OUTPUT: TokenType.OUTPUT,
-    IF: TokenType.IF, THEN: TokenType.THEN, ELSE: TokenType.ELSE, ENDIF: TokenType.ENDIF,
+    IF: TokenType.IF, THEN: TokenType.THEN, ELSE: TokenType.ELSE, ELSEIF: TokenType.ELSEIF, ENDIF: TokenType.ENDIF,
     CASE: TokenType.CASE, OF: TokenType.OF, OTHERWISE: TokenType.OTHERWISE, ENDCASE: TokenType.ENDCASE,
-    FOR: TokenType.FOR, TO: TokenType.TO, STEP: TokenType.STEP, NEXT: TokenType.NEXT,
+    FOR: TokenType.FOR, TO: TokenType.TO, STEP: TokenType.STEP, NEXT: TokenType.NEXT, ENDFOR: TokenType.ENDFOR,
     REPEAT: TokenType.REPEAT, UNTIL: TokenType.UNTIL,
     WHILE: TokenType.WHILE, DO: TokenType.DO, ENDWHILE: TokenType.ENDWHILE,
     PROCEDURE: TokenType.PROCEDURE, FUNCTION: TokenType.FUNCTION,
@@ -131,7 +131,7 @@ export class Lexer {
     GETRECORD: TokenType.GETRECORD, PUTRECORD: TokenType.PUTRECORD,
     LENGTH: TokenType.LENGTH, LCASE: TokenType.LCASE, UCASE: TokenType.UCASE,
     SUBSTRING: TokenType.SUBSTRING, MID: TokenType.MID_FUNC, RIGHT: TokenType.RIGHT_FUNC,
-    ROUND: TokenType.ROUND, RANDOM: TokenType.RANDOM,
+    ROUND: TokenType.ROUND,
     DIV: TokenType.DIV, MOD: TokenType.MOD, EOF: TokenType.EOF_FUNC,
     RANDOMIZE: TokenType.RANDOMIZE, INT: TokenType.INT_FUNC, RND: TokenType.RND, RAND: TokenType.RAND,
     NUM_TO_STRING: TokenType.NUM_TO_STRING, STRING_TO_NUM: TokenType.STRING_TO_NUM,
@@ -239,22 +239,22 @@ export class Lexer {
       let tok: Token | null = null;
       switch (ch) {
         case '<':
-          if (next === '-') { 
-            tok = { type: TokenType.ASSIGN, value: '<-', line, column: col }; 
-            this.advance(); 
-            this.advance(); 
-          } else if (next === '>') { 
-            tok = { type: TokenType.NOT_EQUAL, value: '<>', line, column: col }; 
-            this.advance(); 
-            this.advance(); 
-          } else if (next === '=') { 
-            tok = { type: TokenType.LESS_EQUAL, value: '<=', line, column: col }; 
-            this.advance(); 
-            this.advance(); 
-          } else { 
-            tok = { type: TokenType.LESS, value: '<', line, column: col }; 
-            this.advance(); 
-          } 
+          if (next === '-') {
+            tok = { type: TokenType.ASSIGN, value: '<-', line, column: col };
+            this.advance();
+            this.advance();
+          } else if (next === '>') {
+            tok = { type: TokenType.NOT_EQUAL, value: '<>', line, column: col };
+            this.advance();
+            this.advance();
+          } else if (next === '=') {
+            tok = { type: TokenType.LESS_EQUAL, value: '<=', line, column: col };
+            this.advance();
+            this.advance();
+          } else {
+            tok = { type: TokenType.LESS, value: '<', line, column: col };
+            this.advance();
+          }
           break;
         case '=': tok = { type: TokenType.EQUAL, value: '=', line, column: col }; this.advance(); break;
         case '>':
@@ -355,9 +355,9 @@ export class Parser {
       TokenType.IF, TokenType.CASE, TokenType.FOR, TokenType.REPEAT, TokenType.WHILE,
       TokenType.PROCEDURE, TokenType.FUNCTION, TokenType.RETURN, TokenType.CALL,
       TokenType.OPENFILE, TokenType.READFILE, TokenType.WRITEFILE, TokenType.CLOSEFILE,
-      TokenType.NEXT, TokenType.UNTIL, TokenType.ENDWHILE, TokenType.ENDIF,
+      TokenType.NEXT, TokenType.ENDFOR, TokenType.UNTIL, TokenType.ENDWHILE, TokenType.ENDIF,
       TokenType.ENDCASE, TokenType.ENDPROCEDURE, TokenType.ENDFUNCTION,
-      TokenType.ELSE, TokenType.THEN, TokenType.OTHERWISE,
+      TokenType.ELSE, TokenType.ELSEIF, TokenType.THEN, TokenType.OTHERWISE,
       TokenType.TYPE, TokenType.DEFINE, TokenType.CLASS, TokenType.PUBLIC, TokenType.PRIVATE,
       TokenType.SEEK, TokenType.GETRECORD, TokenType.PUTRECORD, TokenType.SUPER,
     ].includes(t.type);
@@ -612,9 +612,9 @@ export class Parser {
   private parseOutput(): ASTNode {
     const tok = this.expect(TokenType.OUTPUT);
     const values: ASTNode[] = [];
-    while (this.peek().type !== TokenType.EOF && 
-           this.isExprStart(this.peek()) && 
-           !this.isStatementStart(this.peek())) {
+    while (this.peek().type !== TokenType.EOF &&
+      this.isExprStart(this.peek()) &&
+      !this.isStatementStart(this.peek())) {
       values.push(this.parseExpression());
       if (!this.match(TokenType.COMMA)) break;
     }
@@ -628,30 +628,30 @@ export class Parser {
   private parseReturn(): ASTNode {
     const tok = this.expect(TokenType.RETURN);
     let value: ASTNode | null = null;
-    
+
     const startPos = this.pos;
     let endPos = this.pos;
     for (let i = startPos; i < this.tokens.length; i++) {
       const tokenType = this.tokens[i].type;
-      if (tokenType === TokenType.ENDIF || 
-          tokenType === TokenType.ENDPROCEDURE || 
-          tokenType === TokenType.ENDFUNCTION ||
-          tokenType === TokenType.NEXT ||
-          tokenType === TokenType.UNTIL ||
-          tokenType === TokenType.ENDWHILE ||
-          tokenType === TokenType.EOF ||
-          this.isStatementStart(this.tokens[i])) {
+      if (tokenType === TokenType.ENDIF ||
+        tokenType === TokenType.ENDPROCEDURE ||
+        tokenType === TokenType.ENDFUNCTION ||
+        tokenType === TokenType.NEXT ||
+        tokenType === TokenType.UNTIL ||
+        tokenType === TokenType.ENDWHILE ||
+        tokenType === TokenType.EOF ||
+        this.isStatementStart(this.tokens[i])) {
         endPos = i;
         break;
       }
     }
-    
+
     // If endPos == startPos but next token is a statement keyword, 
     // the user wrote something like "RETURN RETURN" or "RETURN ENDIF" which is invalid
     if (endPos === startPos && this.peek().type !== TokenType.EOF && this.isStatementStart(this.peek())) {
       throw new Error(`Syntax error at line ${tok.line}: RETURN cannot be followed by '${this.peek().value}'`);
     }
-    
+
     if (endPos > startPos && endPos - startPos <= 50) {
       const exprTokens = this.tokens.slice(startPos, endPos);
       if (exprTokens.length > 0) {
@@ -662,14 +662,14 @@ export class Parser {
     } else if (this.peek().type !== TokenType.EOF && this.isExprStart(this.peek())) {
       value = this.parseExpression();
     }
-    
+
     return { type: 'ReturnStatement', value, line: tok.line };
   }
 
   // ─── IF ───
   private parseIf(): ASTNode {
     this.expect(TokenType.IF);
-    
+
     const startPos = this.pos;
     let thenPos = -1;
     let depth = 0;
@@ -684,9 +684,9 @@ export class Parser {
         break;
       }
     }
-    
+
     let condition: ASTNode;
-    
+
     if (thenPos > startPos && thenPos - startPos <= 20) {
       const conditionTokens = this.tokens.slice(startPos, thenPos);
       const subParser = new Parser(conditionTokens);
@@ -695,15 +695,32 @@ export class Parser {
     } else {
       condition = this.parseExpressionSimple();
     }
-    
+
     this.expect(TokenType.THEN);
     const thenBranch: ASTNode[] = [];
-    while (this.peek().type !== TokenType.ELSE && this.peek().type !== TokenType.ENDIF) thenBranch.push(this.parseStatement());
+    while (this.peek().type !== TokenType.ELSE && this.peek().type !== TokenType.ELSEIF && this.peek().type !== TokenType.ENDIF) thenBranch.push(this.parseStatement());
     const elseBranch: ASTNode[] = [];
-    if (this.match(TokenType.ELSE)) {
+    if (this.match(TokenType.ELSEIF)) {
+      const elsif = this.parseElseIfAsNestedIf();
+      elseBranch.push(elsif);
+    } else if (this.match(TokenType.ELSE)) {
       while (this.peek().type !== TokenType.ENDIF) elseBranch.push(this.parseStatement());
     }
     this.expect(TokenType.ENDIF);
+    return { type: 'IfStatement', condition, thenBranch, elseBranch };
+  }
+
+  private parseElseIfAsNestedIf(): ASTNode {
+    const condition = this.parseExpressionSimple();
+    this.expect(TokenType.THEN);
+    const thenBranch: ASTNode[] = [];
+    while (this.peek().type !== TokenType.ELSE && this.peek().type !== TokenType.ELSEIF && this.peek().type !== TokenType.ENDIF) thenBranch.push(this.parseStatement());
+    const elseBranch: ASTNode[] = [];
+    if (this.match(TokenType.ELSEIF)) {
+      elseBranch.push(this.parseElseIfAsNestedIf());
+    } else if (this.match(TokenType.ELSE)) {
+      while (this.peek().type !== TokenType.ENDIF) elseBranch.push(this.parseStatement());
+    }
     return { type: 'IfStatement', condition, thenBranch, elseBranch };
   }
 
@@ -718,9 +735,9 @@ export class Parser {
       if (this.peek().type === TokenType.OTHERWISE) {
         this.expect(TokenType.OTHERWISE);
         const stmts: ASTNode[] = [];
-        while (this.peek().type !== TokenType.ENDCASE && 
-               !this.isCaseValue(this.peek()) && 
-               this.peek().type !== TokenType.OTHERWISE) {
+        while (this.peek().type !== TokenType.ENDCASE &&
+          !this.isCaseValue(this.peek()) &&
+          this.peek().type !== TokenType.OTHERWISE) {
           stmts.push(this.parseStatement());
         }
         otherwise = stmts;
@@ -735,9 +752,9 @@ export class Parser {
       }
       this.expect(TokenType.COLON);
       const stmts: ASTNode[] = [];
-      while (this.peek().type !== TokenType.ENDCASE && 
-             !this.isCaseValue(this.peek()) && 
-             this.peek().type !== TokenType.OTHERWISE) {
+      while (this.peek().type !== TokenType.ENDCASE &&
+        !this.isCaseValue(this.peek()) &&
+        this.peek().type !== TokenType.OTHERWISE) {
         stmts.push(this.parseStatement());
       }
       const caseEntry: Record<string, unknown> = { value: val.value, statements: stmts };
@@ -747,13 +764,13 @@ export class Parser {
     this.expect(TokenType.ENDCASE);
     return { type: 'CaseStatement', variable: variable.value, cases, otherwise };
   }
-  
+
   // 判断 token 是否是 case 分支的可能值
   private isCaseValue(t: Token): boolean {
     return [
-      TokenType.STRING_LITERAL, 
-      TokenType.CHAR_LITERAL, 
-      TokenType.NUMBER, 
+      TokenType.STRING_LITERAL,
+      TokenType.CHAR_LITERAL,
+      TokenType.NUMBER,
       TokenType.REAL_NUMBER,
       TokenType.TRUE,
       TokenType.FALSE
@@ -765,7 +782,7 @@ export class Parser {
     this.expect(TokenType.FOR);
     const variable = this.expect(TokenType.IDENTIFIER);
     this.expect(TokenType.ASSIGN);
-    
+
     const startPos = this.pos;
     let toPos = -1;
     for (let i = startPos; i < this.tokens.length; i++) {
@@ -774,7 +791,7 @@ export class Parser {
         break;
       }
     }
-    
+
     let start: ASTNode;
     if (toPos > startPos && toPos - startPos <= 30) {
       const exprTokens = this.tokens.slice(startPos, toPos);
@@ -784,9 +801,9 @@ export class Parser {
     } else {
       start = this.parseExpression();
     }
-    
+
     this.expect(TokenType.TO);
-    
+
     const endStartPos = this.pos;
     let endEndPos = -1;
     for (let i = endStartPos; i < this.tokens.length; i++) {
@@ -794,12 +811,12 @@ export class Parser {
         endEndPos = i;
         break;
       }
-      if (this.isStatementStart(this.tokens[i]) || 
-          this.tokens[i].type === TokenType.NEXT) {
+      if (this.isStatementStart(this.tokens[i]) ||
+        this.tokens[i].type === TokenType.NEXT) {
         break;
       }
     }
-    
+
     let end: ASTNode;
     if (endEndPos > endStartPos && endEndPos - endStartPos <= 30) {
       const exprTokens = this.tokens.slice(endStartPos, endEndPos);
@@ -809,17 +826,21 @@ export class Parser {
     } else {
       end = this.parseExpressionSimple();
     }
-    
+
     let step: ASTNode | null = null;
     if (this.match(TokenType.STEP)) {
       step = this.parseExpressionSimple();
     }
-    
+
     const body: ASTNode[] = [];
-    while (this.peek().type !== TokenType.NEXT) body.push(this.parseStatement());
-    this.expect(TokenType.NEXT);
-    if (this.peek().type === TokenType.IDENTIFIER && this.peek().value.toUpperCase() === variable.value.toUpperCase()) {
+    while (this.peek().type !== TokenType.NEXT && this.peek().type !== TokenType.ENDFOR) body.push(this.parseStatement());
+    if (this.peek().type === TokenType.ENDFOR) {
       this.advance();
+    } else {
+      this.expect(TokenType.NEXT);
+      if (this.peek().type === TokenType.IDENTIFIER && this.peek().value.toUpperCase() === variable.value.toUpperCase()) {
+        this.advance();
+      }
     }
     return { type: 'ForLoop', variable: variable.value, start, end, step, body };
   }
@@ -830,22 +851,22 @@ export class Parser {
     const body: ASTNode[] = [];
     while (this.peek().type !== TokenType.UNTIL) body.push(this.parseStatement());
     this.expect(TokenType.UNTIL);
-    
+
     const condStartPos = this.pos;
     let condEndPos = -1;
     for (let i = condStartPos; i < this.tokens.length; i++) {
-      if (this.isStatementStart(this.tokens[i]) || 
-          this.tokens[i].type === TokenType.ENDIF || 
-          this.tokens[i].type === TokenType.ENDPROCEDURE || 
-          this.tokens[i].type === TokenType.ENDFUNCTION ||
-          this.tokens[i].type === TokenType.NEXT ||
-          this.tokens[i].type === TokenType.ENDWHILE ||
-          this.tokens[i].type === TokenType.EOF) {
+      if (this.isStatementStart(this.tokens[i]) ||
+        this.tokens[i].type === TokenType.ENDIF ||
+        this.tokens[i].type === TokenType.ENDPROCEDURE ||
+        this.tokens[i].type === TokenType.ENDFUNCTION ||
+        this.tokens[i].type === TokenType.NEXT ||
+        this.tokens[i].type === TokenType.ENDWHILE ||
+        this.tokens[i].type === TokenType.EOF) {
         condEndPos = i;
         break;
       }
     }
-    
+
     let condition: ASTNode;
     if (condEndPos > condStartPos && condEndPos - condStartPos <= 30) {
       const exprTokens = this.tokens.slice(condStartPos, condEndPos);
@@ -855,18 +876,18 @@ export class Parser {
     } else {
       condition = this.parseExpression();
     }
-    
+
     return { type: 'RepeatLoop', body, condition };
   }
 
   // ─── WHILE ───
   private parseWhile(): ASTNode {
     this.expect(TokenType.WHILE);
-    
+
     // A-Level 9618: WHILE <condition> ... ENDWHILE (no DO keyword)
     // Parse condition using parseExpression, it stops naturally at statement boundaries
     const condition = this.parseExpression();
-    
+
     const body: ASTNode[] = [];
     while (this.peek().type !== TokenType.ENDWHILE) body.push(this.parseStatement());
     this.expect(TokenType.ENDWHILE);
@@ -1093,36 +1114,36 @@ export class Parser {
   // ═══════════════════════════════════════════════════════════
   //  简化版表达式解析
   // ═══════════════════════════════════════════════════════════
-  private parseExpression(): ASTNode { 
-    return this.parseExpressionSimple(); 
+  private parseExpression(): ASTNode {
+    return this.parseExpressionSimple();
   }
-  
+
   private parseExpressionSimple(): ASTNode {
     return this.parseOrSimple();
   }
 
   private parseOrSimple(): ASTNode {
     let left = this.parseAndSimple();
-    while (this.peek().type === TokenType.OR && !this.isExprStop(this.peek(1))) { 
-      this.advance(); 
-      left = { type: 'BinaryExpression', operator: 'OR', left, right: this.parseAndSimple() }; 
+    while (this.peek().type === TokenType.OR && !this.isExprStop(this.peek(1))) {
+      this.advance();
+      left = { type: 'BinaryExpression', operator: 'OR', left, right: this.parseAndSimple() };
     }
     return left;
   }
 
   private parseAndSimple(): ASTNode {
     let left = this.parseNotSimple();
-    while (this.peek().type === TokenType.AND && !this.isExprStop(this.peek(1))) { 
-      this.advance(); 
-      left = { type: 'BinaryExpression', operator: 'AND', left, right: this.parseNotSimple() }; 
+    while (this.peek().type === TokenType.AND && !this.isExprStop(this.peek(1))) {
+      this.advance();
+      left = { type: 'BinaryExpression', operator: 'AND', left, right: this.parseNotSimple() };
     }
     return left;
   }
 
   private parseNotSimple(): ASTNode {
-    if (this.peek().type === TokenType.NOT && !this.isExprStop(this.peek(1))) { 
-      this.advance(); 
-      return { type: 'UnaryExpression', operator: 'NOT', operand: this.parseComparisonSimple() }; 
+    if (this.peek().type === TokenType.NOT && !this.isExprStop(this.peek(1))) {
+      this.advance();
+      return { type: 'UnaryExpression', operator: 'NOT', operand: this.parseComparisonSimple() };
     }
     return this.parseComparisonSimple();
   }
@@ -1131,10 +1152,10 @@ export class Parser {
     const left = this.parseAddSubSimple();
     const ops: Record<string, string> = { EQUAL: '=', NOT_EQUAL: '<>', LESS: '<', LESS_EQUAL: '<=', GREATER: '>', GREATER_EQUAL: '>=' };
     const t = this.peek();
-    if (ops[t.type]) { 
-      this.advance(); 
+    if (ops[t.type]) {
+      this.advance();
       const right = this.parseAddSubSimpleSimple();
-      return { type: 'BinaryExpression', operator: ops[t.type], left, right }; 
+      return { type: 'BinaryExpression', operator: ops[t.type], left, right };
     }
     return left;
   }
@@ -1166,13 +1187,13 @@ export class Parser {
     return left;
   }
   private parseUnarySimpleSimple(): ASTNode {
-    if (this.peek().type === TokenType.MINUS) { 
-      this.advance(); 
-      return { type: 'UnaryExpression', operator: '-', operand: this.parsePrimarySimple() }; 
+    if (this.peek().type === TokenType.MINUS) {
+      this.advance();
+      return { type: 'UnaryExpression', operator: '-', operand: this.parsePrimarySimple() };
     }
-    if (this.peek().type === TokenType.PLUS) { 
-      this.advance(); 
-      return this.parsePrimarySimple(); 
+    if (this.peek().type === TokenType.PLUS) {
+      this.advance();
+      return this.parsePrimarySimple();
     }
     return this.parsePrimarySimple();
   }
@@ -1207,13 +1228,13 @@ export class Parser {
   }
 
   private parseUnarySimple(): ASTNode {
-    if (this.peek().type === TokenType.MINUS && !this.isExprStop(this.peek(1))) { 
-      this.advance(); 
-      return { type: 'UnaryExpression', operator: '-', operand: this.parsePrimarySimple() }; 
+    if (this.peek().type === TokenType.MINUS && !this.isExprStop(this.peek(1))) {
+      this.advance();
+      return { type: 'UnaryExpression', operator: '-', operand: this.parsePrimarySimple() };
     }
-    if (this.peek().type === TokenType.PLUS && !this.isExprStop(this.peek(1))) { 
-      this.advance(); 
-      return this.parsePrimarySimple(); 
+    if (this.peek().type === TokenType.PLUS && !this.isExprStop(this.peek(1))) {
+      this.advance();
+      return this.parsePrimarySimple();
     }
     return this.parsePrimarySimple();
   }
@@ -1253,8 +1274,8 @@ export class Parser {
 
     // 处理所有内置函数 token 类型
     const builtinTokenTypes = new Set([
-      TokenType.LENGTH, TokenType.LCASE, TokenType.UCASE, 
-      TokenType.SUBSTRING, TokenType.ROUND, TokenType.RANDOM, 
+      TokenType.LENGTH, TokenType.LCASE, TokenType.UCASE,
+      TokenType.SUBSTRING, TokenType.ROUND, TokenType.RANDOM,
       TokenType.EOF_FUNC, TokenType.INT_FUNC, TokenType.RND,
       TokenType.MID_FUNC, TokenType.RIGHT_FUNC, TokenType.RAND,
       TokenType.NUM_TO_STRING, TokenType.STRING_TO_NUM
@@ -1275,7 +1296,7 @@ export class Parser {
       [TokenType.NUM_TO_STRING]: 'NUM_TO_STRING',
       [TokenType.STRING_TO_NUM]: 'STRING_TO_NUM',
     };
-    
+
     if (builtinTokenTypes.has(t.type)) {
       const funcName = builtinNames[t.type] as string;
       this.advance();
@@ -1287,7 +1308,7 @@ export class Parser {
       }
       return { type: 'FunctionCall', name: funcName, args };
     }
-    
+
     if (t.type === TokenType.NEW) {
       this.advance();
       const className = this.expect(TokenType.IDENTIFIER);
@@ -1435,7 +1456,7 @@ export class Interpreter {
   abort(): void { this.aborted = true; }
   setFileContent(filename: string, content: string | string[]): void { this.fileContents.set(filename, typeof content === 'string' ? content.split('\n') : content); }
   getFileContent(filename: string): string[] | undefined { return this.fileContents.get(filename); }
-  getAllFiles(): Record<string, string[]> { 
+  getAllFiles(): Record<string, string[]> {
     const files: Record<string, string[]> = {};
     this.fileContents.forEach((lines, filename) => {
       files[filename] = lines;
@@ -1451,7 +1472,7 @@ export class Interpreter {
   getSetDefinitions(): Map<string, { values: string[]; setType: string }> { return this.setDefinitions; }
   getPointerVariables(): Map<string, string> { return this.pointerVariables; }
   getArrays(): Map<string, { dims: { lower: number; upper: number }[]; data: unknown[] }> { return this.arrays; }
-  
+
   // 根据数据类型返回默认值
   private getDefaultValue(dataType: string): unknown {
     const dt = dataType.toUpperCase();
@@ -1521,12 +1542,12 @@ export class Interpreter {
     const newOutput = this.output.slice(this.lastOutputLine).join('\\n');
     this.lastOutputLine = this.output.length;
     this.traceTable.push({ line, variables: snapshot, output: newOutput });
-  }
+   }
 
-  async execute(ast: ASTNode): Promise<string[]> { 
-    this.output = []; 
-    await this.executeNode(ast); 
-    return this.output; 
+  async execute(ast: ASTNode): Promise<string[]> {
+    this.output = [];
+    await this.executeNode(ast);
+    return this.output;
   }
 
   private currentLine = 0;
@@ -1539,7 +1560,7 @@ export class Interpreter {
     if (!node || node.type === 'Empty') return null;
     if (this.aborted) throw new Error('Execution aborted by user');
     if (node.line) this.currentLine = node.line;
-    
+
     switch (node.type) {
       case 'Program': return this.executeProgram(node);
       case 'VariableDeclaration': return this.executeVariableDeclaration(node);
@@ -1594,7 +1615,7 @@ export class Interpreter {
     // Pass 3: 执行主程序语句
     for (const s of stmts) {
       if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition' || s.type === 'ClassDeclaration' ||
-          s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') continue;
+        s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') continue;
       const result = await this.executeNode(s);
       if (result instanceof ReturnSignal) throw result;
     }
@@ -1621,7 +1642,7 @@ export class Interpreter {
   private findTypeDefinition(typeName: string): { kind: 'enum' | 'pointer' | 'record'; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] } | null {
     return this.typeDefinitions.get(typeName) ?? null;
   }
-  
+
   private executeArrayDeclaration(node: any): void {
     const name = node.name as string;
     const dims = node.dimensions as { lower: number; upper: number }[];
@@ -1649,14 +1670,14 @@ export class Interpreter {
     }
     return record;
   }
-  
+
   private async executeConstantDeclaration(node: any): Promise<void> {
     const name = node.name as string;
     const value = await this.evaluateExpression(node.value);
     this.constants.set(name, value);
     this.recordTrace(node.line || 0);
   }
-  
+
   private async executeAssignment(node: any): Promise<void> {
     const target = node.target as any;
     const value = await this.evaluateExpression(node.value);
@@ -1862,7 +1883,7 @@ export class Interpreter {
       this.currentClassName = oldClass;
     }
   }
-  
+
   private checkTypeCompatibility(value: unknown, varName: string): void {
     const varType = this.variableTypes.get(varName);
     if (!varType) return;
@@ -1871,7 +1892,7 @@ export class Interpreter {
       throw this.runtimeError(`Type mismatch: cannot assign ${valueType} value to ${varType} variable '${varName}'`);
     }
   }
-  
+
   private checkArrayElementType(value: unknown, arrayName: string): void {
     const varType = this.variableTypes.get(arrayName);
     if (!varType?.startsWith('ARRAY_OF_')) return;
@@ -1921,11 +1942,11 @@ export class Interpreter {
   private async executeInput(node: any): Promise<void> {
     const varName = node.variable as string;
     const varType = this.variableTypes.get(varName);
-    
+
     if (this.inputCallback) {
       const rawValue = await this.inputCallback(varName);
       const str = String(rawValue).trim();
-      
+
       if (varType === 'INTEGER') {
         const parsed = parseInt(str, 10);
         if (isNaN(parsed) || str !== String(parsed)) {
@@ -2055,23 +2076,23 @@ export class Interpreter {
         const numVal = typeof value === 'number' ? value : parseFloat(String(value));
         if (!isNaN(lo) && !isNaN(hi) && !isNaN(numVal) && numVal >= lo && numVal <= hi) {
           for (const s of c.statements) {
-            const r = await this.executeNode(s); 
-            if (r instanceof ReturnSignal) throw r; 
+            const r = await this.executeNode(s);
+            if (r instanceof ReturnSignal) throw r;
           }
-          return; 
+          return;
         }
-      } else if (String(value) === caseVal || String(value) === c.value) { 
+      } else if (String(value) === caseVal || String(value) === c.value) {
         for (const s of c.statements) {
-          const r = await this.executeNode(s); 
-          if (r instanceof ReturnSignal) throw r; 
+          const r = await this.executeNode(s);
+          if (r instanceof ReturnSignal) throw r;
         }
-        return; 
+        return;
       }
     }
-    if (node.otherwise) { 
+    if (node.otherwise) {
       for (const s of node.otherwise as any[]) {
-        const r = await this.executeNode(s); 
-        if (r instanceof ReturnSignal) throw r; 
+        const r = await this.executeNode(s);
+        if (r instanceof ReturnSignal) throw r;
       }
     }
   }
@@ -2119,7 +2140,7 @@ export class Interpreter {
       const savedTypes = new Map<string, string>();
       const args = node.args as any[];
       const byRefArgs: { paramName: string; argName: string }[] = [];
-      
+
       for (let i = 0; i < proc.params.length; i++) {
         const param = proc.params[i];
         const arg = args[i];
@@ -2132,16 +2153,16 @@ export class Interpreter {
         this.variables.set(param.name, i < args.length ? await this.evaluateExpression(arg) : null);
         this.variableTypes.set(param.name, param.type);
       }
-      
+
       try { for (const s of proc.body as any[]) await this.executeNode(s); }
       catch (e) { if (!(e instanceof ReturnSignal)) throw e; }
-      
+
       // Write back BYREF parameters
       for (const { paramName, argName } of byRefArgs) {
         const value = this.variables.get(paramName);
         this.variables.set(argName, value);
       }
-      
+
       // Restore only the saved parameter variables (remove params, restore originals)
       for (const param of proc.params) {
         if (savedVars.has(param.name)) {
@@ -2155,7 +2176,7 @@ export class Interpreter {
           this.variableTypes.delete(param.name);
         }
       }
-      
+
       return null;
     }
     throw new Error(`Undefined procedure '${node.name}' at line ${node.line}`);
@@ -2244,8 +2265,8 @@ export class Interpreter {
         this.variableTypes.set(func.params[i].name, func.params[i].type);
       }
       let result: unknown = null;
-      let hasReturned = false;      try {
-        for (const s of func.body as any[]) { 
+      let hasReturned = false; try {
+        for (const s of func.body as any[]) {
           const stmtResult = await this.executeNode(s);
           if (stmtResult instanceof ReturnSignal) {
             result = stmtResult.value;
@@ -2271,7 +2292,7 @@ export class Interpreter {
         }
       }
       this.callDepth--;
-      
+
       if (hasReturned) return result;
       // Function completed without RETURN statement
       this.runtimeError(`Function '${node.name}' did not return a value`);
@@ -2361,6 +2382,8 @@ export class Interpreter {
   private resolveFilename(filename: string): string {
     const varValue = this.variables.get(filename);
     if (varValue !== undefined) return String(varValue);
+    const constValue = this.constants.get(filename);
+    if (constValue !== undefined) return String(constValue);
     return filename;
   }
 
