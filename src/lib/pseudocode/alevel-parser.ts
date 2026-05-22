@@ -26,7 +26,7 @@ class ReturnSignal {
 // ─── Token 类型 ───
 export enum TokenType {
   // 数据类型
-  INTEGER = 'INTEGER', REAL = 'REAL', CHAR = 'CHAR', STRING = 'STRING', BOOLEAN = 'BOOLEAN',
+  INTEGER = 'INTEGER', REAL = 'REAL', CHAR = 'CHAR', STRING = 'STRING', BOOLEAN = 'BOOLEAN', DATE = 'DATE',
   // 关键字
   DECLARE = 'DECLARE', CONSTANT = 'CONSTANT', INPUT = 'INPUT', OUTPUT = 'OUTPUT',
   IF = 'IF', THEN = 'THEN', ELSE = 'ELSE', ENDIF = 'ENDIF',
@@ -41,6 +41,8 @@ export enum TokenType {
   ARRAY = 'ARRAY', AND = 'AND', OR = 'OR', NOT = 'NOT', TRUE = 'TRUE', FALSE = 'FALSE',
   // 用户自定义类型关键字
   TYPE = 'TYPE', ENDTYPE = 'ENDTYPE', DEFINE = 'DEFINE', SET = 'SET',
+  CLASS = 'CLASS', ENDCLASS = 'ENDCLASS', INHERITS = 'INHERITS', PUBLIC = 'PUBLIC', PRIVATE = 'PRIVATE', NEW = 'NEW', SUPER = 'SUPER',
+  APPEND = 'APPEND', SEEK = 'SEEK', GETRECORD = 'GETRECORD', PUTRECORD = 'PUTRECORD',
   // 内置函数
   LENGTH = 'LENGTH', LCASE = 'LCASE', UCASE = 'UCASE', SUBSTRING = 'SUBSTRING',
   MID_FUNC = 'MID_FUNC', RIGHT_FUNC = 'RIGHT_FUNC',
@@ -77,16 +79,21 @@ export type ASTNodeType =
   | 'IfStatement' | 'CaseStatement' | 'ForLoop' | 'RepeatLoop' | 'WhileLoop'
   | 'ProcedureDeclaration' | 'FunctionDeclaration' | 'FunctionCall'
   | 'BinaryExpression' | 'UnaryExpression'
-  | 'Identifier' | 'NumberLiteral' | 'RealLiteral' | 'StringLiteral' | 'CharLiteral' | 'BooleanLiteral'
+  | 'Identifier' | 'NumberLiteral' | 'RealLiteral' | 'StringLiteral' | 'CharLiteral' | 'BooleanLiteral' | 'DateLiteral'
   | 'ArrayAccess' | 'ArrayDeclaration'
-  | 'FileOpenRead' | 'FileOpenWrite' | 'FileRead' | 'FileWrite' | 'FileClose'
+  | 'FileOpenRead' | 'FileOpenWrite' | 'FileOpenAppend' | 'FileOpenRandom' | 'FileRead' | 'FileWrite' | 'FileClose'
+  | 'FileSeek' | 'FileGetRecord' | 'FilePutRecord'
   | 'RandomizeStatement' | 'Empty'
   // 用户自定义类型节点
   | 'TypeDeclaration'        // TYPE MyType ... ENDTYPE
   | 'SetDefinition'         // DEFINE name (...) : SetType
   | 'FieldAccess'          // record.field
   | 'PointerDereference'   // pointer^
-  | 'AddressOf';          // ^variable
+  | 'AddressOf'           // ^variable
+  | 'ClassDeclaration'    // CLASS ... ENDCLASS
+  | 'ObjectCreation'      // NEW ClassName(args)
+  | 'MethodCall'          // object.method(args)
+  | 'SuperMethodCall';    // SUPER.method(args)
 
 export interface ASTNode { type: ASTNodeType; [key: string]: unknown; }
 
@@ -101,7 +108,7 @@ export class Lexer {
 
   private keywords: Record<string, TokenType> = {
     INTEGER: TokenType.INTEGER, REAL: TokenType.REAL, CHAR: TokenType.CHAR,
-    STRING: TokenType.STRING, BOOLEAN: TokenType.BOOLEAN,
+    STRING: TokenType.STRING, BOOLEAN: TokenType.BOOLEAN, DATE: TokenType.DATE,
     DECLARE: TokenType.DECLARE, CONSTANT: TokenType.CONSTANT,
     INPUT: TokenType.INPUT, OUTPUT: TokenType.OUTPUT,
     IF: TokenType.IF, THEN: TokenType.THEN, ELSE: TokenType.ELSE, ENDIF: TokenType.ENDIF,
@@ -118,6 +125,10 @@ export class Lexer {
     TRUE: TokenType.TRUE, FALSE: TokenType.FALSE,
     // 用户自定义类型
     TYPE: TokenType.TYPE, ENDTYPE: TokenType.ENDTYPE, DEFINE: TokenType.DEFINE, SET: TokenType.SET,
+    CLASS: TokenType.CLASS, ENDCLASS: TokenType.ENDCLASS, INHERITS: TokenType.INHERITS,
+    PUBLIC: TokenType.PUBLIC, PRIVATE: TokenType.PRIVATE, NEW: TokenType.NEW, SUPER: TokenType.SUPER,
+    APPEND: TokenType.APPEND, RANDOM: TokenType.RANDOM, SEEK: TokenType.SEEK,
+    GETRECORD: TokenType.GETRECORD, PUTRECORD: TokenType.PUTRECORD,
     LENGTH: TokenType.LENGTH, LCASE: TokenType.LCASE, UCASE: TokenType.UCASE,
     SUBSTRING: TokenType.SUBSTRING, MID: TokenType.MID_FUNC, RIGHT: TokenType.RIGHT_FUNC,
     ROUND: TokenType.ROUND, RANDOM: TokenType.RANDOM,
@@ -153,7 +164,7 @@ export class Lexer {
     const upper = id.toUpperCase();
     // Built-in functions (LENGTH, LCASE, etc.) are only keywords when followed by '('
     // Otherwise they're regular identifiers (e.g., "Length" as a variable name)
-    const builtinFunctions = ['LENGTH', 'LCASE', 'UCASE', 'SUBSTRING', 'MID', 'RIGHT', 'ROUND', 'RANDOM', 'EOF', 'INT', 'RND', 'RAND', 'NUM_TO_STRING', 'STRING_TO_NUM'];
+    const builtinFunctions = ['LENGTH', 'LCASE', 'UCASE', 'SUBSTRING', 'MID', 'RIGHT', 'ROUND', 'EOF', 'INT', 'RND', 'RAND', 'NUM_TO_STRING', 'STRING_TO_NUM'];
     if (builtinFunctions.includes(upper)) {
       // Look ahead for '('
       const savedPos = this.pos;
@@ -253,7 +264,6 @@ export class Lexer {
         case '-': tok = { type: TokenType.MINUS, value: '-', line, column: col }; this.advance(); break;
         case '*': tok = { type: TokenType.MULTIPLY, value: '*', line, column: col }; this.advance(); break;
         case '/': tok = { type: TokenType.DIVIDE, value: '/', line, column: col }; this.advance(); break;
-        case '^': tok = { type: TokenType.POWER, value: '^', line, column: col }; this.advance(); break;
         case '&': tok = { type: TokenType.AMPERSAND, value: '&', line, column: col }; this.advance(); break;
         case '(': tok = { type: TokenType.LPAREN, value: '(', line, column: col }; this.advance(); break;
         case ')': tok = { type: TokenType.RPAREN, value: ')', line, column: col }; this.advance(); break;
@@ -348,7 +358,8 @@ export class Parser {
       TokenType.NEXT, TokenType.UNTIL, TokenType.ENDWHILE, TokenType.ENDIF,
       TokenType.ENDCASE, TokenType.ENDPROCEDURE, TokenType.ENDFUNCTION,
       TokenType.ELSE, TokenType.THEN, TokenType.OTHERWISE,
-      TokenType.TYPE, TokenType.DEFINE,
+      TokenType.TYPE, TokenType.DEFINE, TokenType.CLASS, TokenType.PUBLIC, TokenType.PRIVATE,
+      TokenType.SEEK, TokenType.GETRECORD, TokenType.PUTRECORD, TokenType.SUPER,
     ].includes(t.type);
   }
 
@@ -376,7 +387,7 @@ export class Parser {
       TokenType.ROUND, TokenType.RANDOM, TokenType.EOF_FUNC,
       TokenType.DIV, TokenType.MOD, TokenType.INT_FUNC, TokenType.RND,
       TokenType.MID_FUNC, TokenType.RIGHT_FUNC, TokenType.RAND,
-      TokenType.NUM_TO_STRING, TokenType.STRING_TO_NUM,
+      TokenType.NUM_TO_STRING, TokenType.STRING_TO_NUM, TokenType.NEW, TokenType.SUPER,
     ].includes(t.type);
   }
 
@@ -385,6 +396,13 @@ export class Parser {
     switch (t.type) {
       case TokenType.TYPE: return this.parseTypeDeclaration();
       case TokenType.DEFINE: return this.parseSetDefinition();
+      case TokenType.CLASS: return this.parseClassDeclaration();
+      case TokenType.PUBLIC:
+      case TokenType.PRIVATE: return this.parseClassMemberDeclaration();
+      case TokenType.SEEK: return this.parseFileSeek();
+      case TokenType.GETRECORD: return this.parseFileGetRecord();
+      case TokenType.PUTRECORD: return this.parseFilePutRecord();
+      case TokenType.SUPER: return this.parseSuperMethodCall();
       case TokenType.DECLARE: return this.parseDeclaration();
       case TokenType.CONSTANT: return this.parseConstant();
       case TokenType.INPUT: return this.parseInput();
@@ -425,7 +443,7 @@ export class Parser {
     if (this.peek().type === TokenType.ARRAY) return this.parseArrayDeclaration(name.value, name.line);
     const dt = this.advance();
     // 支持内置类型和用户自定义类型（IDENTIFIER）
-    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
+    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN, TokenType.DATE];
     if (!builtinTypes.includes(dt.type) && dt.type !== TokenType.IDENTIFIER) {
       throw new Error(`Invalid data type '${dt.value}' for variable '${name.value}' at line ${name.line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN or a user-defined type name`);
     }
@@ -448,7 +466,7 @@ export class Parser {
     this.expect(TokenType.RBRACKET); this.expect(TokenType.OF);
     const dt = this.advance();
     // 支持内置类型和用户自定义类型
-    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN];
+    const builtinTypes = [TokenType.INTEGER, TokenType.REAL, TokenType.CHAR, TokenType.STRING, TokenType.BOOLEAN, TokenType.DATE];
     if (!builtinTypes.includes(dt.type) && dt.type !== TokenType.IDENTIFIER) {
       throw new Error(`Invalid array element type '${dt.value}' for array '${name}' at line ${line}. Valid types: INTEGER, REAL, CHAR, STRING, BOOLEAN or a user-defined type name`);
     }
@@ -537,6 +555,36 @@ export class Parser {
     const setTypeTok = this.advance();
     this.expect(TokenType.ENDTYPE);
     return { type: 'SetDefinition', name: nameTok.value, values, setType: setTypeTok.value, line: startTok.line };
+  }
+
+  private parseClassDeclaration(): ASTNode {
+    const startTok = this.expect(TokenType.CLASS);
+    const nameTok = this.expect(TokenType.IDENTIFIER);
+    let parent: string | null = null;
+    if (this.match(TokenType.INHERITS)) parent = this.expect(TokenType.IDENTIFIER).value;
+    const members: ASTNode[] = [];
+    while (this.peek().type !== TokenType.ENDCLASS) {
+      members.push(this.parseStatement());
+    }
+    this.expect(TokenType.ENDCLASS);
+    return { type: 'ClassDeclaration', name: nameTok.value, parent, members, line: startTok.line };
+  }
+
+  private parseClassMemberDeclaration(): ASTNode {
+    const visibilityTok = this.advance();
+    const visibility = visibilityTok.type === TokenType.PRIVATE ? 'private' : 'public';
+    if (this.peek().type === TokenType.PROCEDURE) {
+      const proc = this.parseProcedure();
+      return { ...proc, visibility };
+    }
+    if (this.peek().type === TokenType.FUNCTION) {
+      const fn = this.parseFunction();
+      return { ...fn, visibility };
+    }
+    const nameTok = this.expect(TokenType.IDENTIFIER);
+    this.expect(TokenType.COLON);
+    const typeTok = this.advance();
+    return { type: 'VariableDeclaration', name: nameTok.value, dataType: typeTok.value, visibility, line: visibilityTok.line };
   }
 
   private parseConstant(): ASTNode {
@@ -828,7 +876,7 @@ export class Parser {
   // ─── PROCEDURE — IGCSE 规范: 无参数时可省略括号 ───
   private parseProcedure(): ASTNode {
     this.expect(TokenType.PROCEDURE);
-    const name = this.expect(TokenType.IDENTIFIER);
+    const name = this.peek().type === TokenType.NEW ? this.advance() : this.expect(TokenType.IDENTIFIER);
     const params: { name: string; type: string; byRef?: boolean }[] = [];
     // 支持无参数形式: PROCEDURE Name
     if (this.peek().type === TokenType.LPAREN) {
@@ -914,8 +962,12 @@ export class Parser {
       return { type: 'FileOpenRead', filename: f.value, line: tok.line };
     } else if (mode.type === TokenType.WRITE) {
       return { type: 'FileOpenWrite', filename: f.value, line: tok.line };
+    } else if (mode.type === TokenType.APPEND) {
+      return { type: 'FileOpenAppend', filename: f.value, line: tok.line };
+    } else if (mode.type === TokenType.RANDOM) {
+      return { type: 'FileOpenRandom', filename: f.value, line: tok.line };
     }
-    throw new Error(`Expected READ or WRITE after FOR in OPENFILE, got '${mode.value}' at line ${mode.line}`);
+    throw new Error(`Expected READ, WRITE, APPEND or RANDOM after FOR in OPENFILE, got '${mode.value}' at line ${mode.line}`);
   }
 
   private parseFileRead(): ASTNode {
@@ -932,6 +984,43 @@ export class Parser {
   private parseFileClose(): ASTNode {
     this.expect(TokenType.CLOSEFILE); const f = this.parseFilename();
     return { type: 'FileClose', filename: f.value, line: f.line };
+  }
+
+  private parseFileSeek(): ASTNode {
+    const tok = this.expect(TokenType.SEEK);
+    const f = this.parseFilename();
+    this.expect(TokenType.COMMA);
+    const position = this.parseExpression();
+    return { type: 'FileSeek', filename: f.value, position, line: tok.line };
+  }
+
+  private parseFileGetRecord(): ASTNode {
+    const tok = this.expect(TokenType.GETRECORD);
+    const f = this.parseFilename();
+    this.expect(TokenType.COMMA);
+    const variable = this.expect(TokenType.IDENTIFIER);
+    return { type: 'FileGetRecord', filename: f.value, variable: variable.value, line: tok.line };
+  }
+
+  private parseFilePutRecord(): ASTNode {
+    const tok = this.expect(TokenType.PUTRECORD);
+    const f = this.parseFilename();
+    this.expect(TokenType.COMMA);
+    const value = this.parseExpression();
+    return { type: 'FilePutRecord', filename: f.value, value, line: tok.line };
+  }
+
+  private parseSuperMethodCall(): ASTNode {
+    const tok = this.expect(TokenType.SUPER);
+    this.expect(TokenType.DOT);
+    const methodTok = this.expect(TokenType.IDENTIFIER);
+    const args: ASTNode[] = [];
+    this.expect(TokenType.LPAREN);
+    while (!this.match(TokenType.RPAREN)) {
+      args.push(this.parseExpressionSimple());
+      if (!this.match(TokenType.COMMA)) { if (this.peek().type !== TokenType.RPAREN) break; }
+    }
+    return { type: 'SuperMethodCall', method: methodTok.value, args, line: tok.line };
   }
 
   // ─── 赋值 / 过程调用（无 CALL 前缀的标识符开头）───
@@ -967,6 +1056,26 @@ export class Parser {
       this.expect(TokenType.ASSIGN);
       const value = this.parseExpression();
       return { type: 'Assignment', target: { type: 'PointerDereference', name: name.value, line: name.line }, value, line: name.line };
+    }
+    // 支持对象字段赋值/方法调用: object.field <- value / object.method(args)
+    if (this.match(TokenType.DOT)) {
+      const memberTok = this.expect(TokenType.IDENTIFIER);
+      if (this.match(TokenType.LPAREN)) {
+        const args: ASTNode[] = [];
+        while (!this.match(TokenType.RPAREN)) {
+          args.push(this.parseExpression());
+          if (!this.match(TokenType.COMMA)) { if (this.peek().type !== TokenType.RPAREN) break; }
+        }
+        return { type: 'MethodCall', object: { type: 'Identifier', name: name.value }, method: memberTok.value, args, line: name.line };
+      }
+      let target: ASTNode = { type: 'FieldAccess', record: { type: 'Identifier', name: name.value }, field: memberTok.value, line: memberTok.line };
+      while (this.match(TokenType.DOT)) {
+        const fieldName = this.expect(TokenType.IDENTIFIER);
+        target = { type: 'FieldAccess', record: target, field: fieldName.value, line: fieldName.line };
+      }
+      this.expect(TokenType.ASSIGN);
+      const value = this.parseExpression();
+      return { type: 'Assignment', target, value, line: name.line };
     }
     if (this.match(TokenType.LPAREN)) {
       const args: ASTNode[] = [];
@@ -1112,7 +1221,17 @@ export class Parser {
   private parsePrimarySimple(): ASTNode {
     const t = this.peek();
 
-    if (t.type === TokenType.NUMBER) { this.advance(); return { type: 'NumberLiteral', value: parseInt(t.value) }; }
+    if (t.type === TokenType.NUMBER) {
+      if (this.peek(1).type === TokenType.DIVIDE && this.peek(2).type === TokenType.NUMBER && this.peek(3).type === TokenType.DIVIDE && this.peek(4).type === TokenType.NUMBER) {
+        const day = this.advance().value;
+        this.advance();
+        const month = this.advance().value;
+        this.advance();
+        const year = this.advance().value;
+        return { type: 'DateLiteral', value: `${day}/${month}/${year}` };
+      }
+      this.advance(); return { type: 'NumberLiteral', value: parseInt(t.value) };
+    }
     if (t.type === TokenType.REAL_NUMBER) { this.advance(); return { type: 'RealLiteral', value: parseFloat(t.value) }; }
     if (t.type === TokenType.STRING_LITERAL) { this.advance(); return { type: 'StringLiteral', value: t.value }; }
     if (t.type === TokenType.CHAR_LITERAL) { this.advance(); return { type: 'CharLiteral', value: t.value }; }
@@ -1169,6 +1288,22 @@ export class Parser {
       return { type: 'FunctionCall', name: funcName, args };
     }
     
+    if (t.type === TokenType.NEW) {
+      this.advance();
+      const className = this.expect(TokenType.IDENTIFIER);
+      const args: ASTNode[] = [];
+      this.expect(TokenType.LPAREN);
+      while (!this.match(TokenType.RPAREN)) {
+        args.push(this.parseExpressionSimple());
+        if (!this.match(TokenType.COMMA)) { if (this.peek().type !== TokenType.RPAREN) break; }
+      }
+      return { type: 'ObjectCreation', className: className.value, args, line: className.line };
+    }
+
+    if (t.type === TokenType.SUPER) {
+      return this.parseSuperMethodCall();
+    }
+
     if (t.type === TokenType.IDENTIFIER) {
       const name = this.advance();
       if (this.match(TokenType.LBRACKET)) {
@@ -1206,10 +1341,19 @@ export class Parser {
       if (this.match(TokenType.CARET)) {
         expr = { type: 'PointerDereference', name: name.value, line: name.line };
       }
-      // 支持链式字段访问: MyRec.field
+      // 支持链式字段访问/方法调用: MyRec.field / object.method()
       while (this.match(TokenType.DOT)) {
         const fieldName = this.expect(TokenType.IDENTIFIER);
-        expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+        if (this.match(TokenType.LPAREN)) {
+          const args: ASTNode[] = [];
+          while (!this.match(TokenType.RPAREN)) {
+            args.push(this.parseExpressionSimple());
+            if (!this.match(TokenType.COMMA)) { if (this.peek().type !== TokenType.RPAREN) break; }
+          }
+          expr = { type: 'MethodCall', object: expr, method: fieldName.value, args, line: fieldName.line };
+        } else {
+          expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+        }
       }
       return expr;
     }
@@ -1261,7 +1405,13 @@ export class Interpreter {
   private traceTable: TraceEntry[] = [];
   private traceEnabled = true;
   private lastOutputLine = 0;
-  private openFiles = new Map<string, 'read' | 'write'>();
+  private openFiles = new Map<string, 'read' | 'write' | 'append' | 'random'>();
+  private randomFileRecords = new Map<string, unknown[]>();
+
+  private classDefinitions = new Map<string, { name: string; parent: string | null; fields: any[]; methods: Map<string, any> }>();
+  private objectClasses = new WeakMap<object, string>();
+  private currentThis: Record<string, unknown> | null = null;
+  private currentClassName: string | null = null;
 
   // 变量类型追踪，用于 REAL 输出格式化
   private variableTypes = new Map<string, string>();
@@ -1310,6 +1460,7 @@ export class Interpreter {
     if (dt === 'CHAR') return '';
     if (dt === 'STRING') return '';
     if (dt === 'BOOLEAN') return false;
+    if (dt === 'DATE') return '';
     // 用户自定义记录类型
     const typeDef = this.typeDefinitions.get(dataType);
     if (typeDef && typeDef.kind === 'record' && typeDef.fields) {
@@ -1329,7 +1480,7 @@ export class Interpreter {
   // 根据数据类型返回类型字符串（用于 variableTypes Map）
   private getTypeString(dataType: string): string {
     const dt = dataType.toUpperCase();
-    const builtin = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN'];
+    const builtin = ['INTEGER', 'REAL', 'CHAR', 'STRING', 'BOOLEAN', 'DATE'];
     if (builtin.includes(dt)) return dt;
     // 用户自定义类型，直接用类型名
     if (this.typeDefinitions.has(dataType)) return dataType;
@@ -1355,6 +1506,10 @@ export class Interpreter {
     this.typeDefinitions.clear();
     this.pointerVariables.clear();
     this.setDefinitions.clear();
+    this.randomFileRecords.clear();
+    this.classDefinitions.clear();
+    this.currentThis = null;
+    this.currentClassName = null;
   }
 
   private recordTrace(line: number): void {
@@ -1403,23 +1558,34 @@ export class Interpreter {
       case 'FunctionDeclaration': return this.executeFunctionDeclaration(node);
       case 'ProcedureCall': return this.executeProcedureCall(node);
       case 'FunctionCall': return this.executeFunctionCall(node);
+      case 'MethodCall': return this.executeMethodCall(node);
+      case 'SuperMethodCall': return this.executeSuperMethodCall(node);
+      case 'ObjectCreation': return this.createObject(node.className, node.args || []);
       case 'FileOpenRead': return this.executeFileOpenRead(node);
       case 'FileOpenWrite': return this.executeFileOpenWrite(node);
+      case 'FileOpenAppend': return this.executeFileOpenAppend(node);
+      case 'FileOpenRandom': return this.executeFileOpenRandom(node);
       case 'FileRead': return this.executeFileRead(node);
       case 'FileWrite': return this.executeFileWrite(node);
+      case 'FileSeek': return this.executeFileSeek(node);
+      case 'FileGetRecord': return this.executeFileGetRecord(node);
+      case 'FilePutRecord': return this.executeFilePutRecord(node);
       case 'FileClose': return this.executeFileClose(node);
       case 'RandomizeStatement': return null;
       case 'TypeDeclaration': return this.executeTypeDeclaration(node);
       case 'SetDefinition': return this.executeSetDefinition(node);
+      case 'ClassDeclaration': return this.executeClassDeclaration(node);
+      case 'MethodCall': return this.executeMethodCall(node);
+      case 'SuperMethodCall': return this.executeSuperMethodCall(node);
       default: return this.evaluateExpression(node);
     }
   }
 
   private async executeProgram(node: any): Promise<void> {
     const stmts: any[] = node.statements;
-    // Pass 1: 先注册所有 TYPE 和 SET DEFINE 声明
+    // Pass 1: 先注册所有 TYPE、SET DEFINE 和 CLASS 声明
     for (const s of stmts) {
-      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition') this.executeNode(s);
+      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition' || s.type === 'ClassDeclaration') this.executeNode(s);
     }
     // Pass 2: 再注册过程和函数
     for (const s of stmts) {
@@ -1427,7 +1593,7 @@ export class Interpreter {
     }
     // Pass 3: 执行主程序语句
     for (const s of stmts) {
-      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition' ||
+      if (s.type === 'TypeDeclaration' || s.type === 'SetDefinition' || s.type === 'ClassDeclaration' ||
           s.type === 'ProcedureDeclaration' || s.type === 'FunctionDeclaration') continue;
       const result = await this.executeNode(s);
       if (result instanceof ReturnSignal) throw result;
@@ -1560,6 +1726,10 @@ export class Interpreter {
       if (typeof varVal !== 'object' || varVal === null) this.runtimeError(`Variable '${current.name}' is not a record type`);
       const record = varVal as Record<string, unknown>;
       const targetField = fieldNames[fieldNames.length - 1];
+      const className = this.objectClasses.get(record) || (record as any).__className;
+      if (className && this.findFieldVisibility(className, targetField) === 'private' && this.currentThis !== record) {
+        this.runtimeError(`Cannot assign to private field '${targetField}' of class '${className}'`);
+      }
       const typeDef = this.typeDefinitions.get(this.variableTypes.get(current.name as string) || '');
       if (typeDef && typeDef.kind === 'record' && typeDef.fields) {
         const fieldDef = typeDef.fields.find((f: any) => f.name === targetField);
@@ -1594,6 +1764,103 @@ export class Interpreter {
   private executeSetDefinition(node: any): void {
     const { name, values, setType } = node;
     this.setDefinitions.set(name, { values, setType });
+  }
+
+  private executeClassDeclaration(node: any): void {
+    const fields: any[] = [];
+    const methods = new Map<string, any>();
+    for (const member of node.members as any[]) {
+      if (member.type === 'VariableDeclaration') fields.push({ ...member, visibility: member.visibility || 'public' });
+      if (member.type === 'Assignment' && member.target?.type === 'Identifier') {
+        const field = fields.find(f => f.name === member.target.name);
+        if (field) field.initializer = member.value;
+      }
+      if (member.type === 'ProcedureDeclaration' || member.type === 'FunctionDeclaration') methods.set(member.name, { ...member, visibility: member.visibility || 'public' });
+    }
+    this.classDefinitions.set(node.name, { name: node.name, parent: node.parent ?? null, fields, methods });
+  }
+
+  private getClassFieldDefaults(className: string): Record<string, unknown> {
+    const cls = this.classDefinitions.get(className);
+    if (!cls) this.runtimeError(`Undefined class '${className}'`);
+    const obj: Record<string, unknown> = { __className: className };
+    if (cls.parent) Object.assign(obj, this.getClassFieldDefaults(cls.parent));
+    for (const field of cls.fields) obj[field.name] = field.initializer ? this.evaluateLiteralInitializer(field.initializer) : this.getDefaultValue(field.dataType);
+    return obj;
+  }
+
+  private evaluateLiteralInitializer(node: any): unknown {
+    if (!node) return null;
+    if (node.type === 'NumberLiteral' || node.type === 'RealLiteral' || node.type === 'StringLiteral' || node.type === 'CharLiteral' || node.type === 'BooleanLiteral' || node.type === 'DateLiteral') return node.value;
+    return null;
+  }
+
+  private findMethod(className: string, methodName: string): any {
+    const cls = this.classDefinitions.get(className);
+    if (!cls) return null;
+    const method = cls.methods.get(methodName);
+    if (method) return { method, owner: className };
+    if (cls.parent) return this.findMethod(cls.parent, methodName);
+    return null;
+  }
+
+  private async createObject(className: string, args: any[]): Promise<Record<string, unknown>> {
+    const obj = this.getClassFieldDefaults(className);
+    this.objectClasses.set(obj, className);
+    const ctor = this.findMethod(className, 'NEW');
+    if (ctor) await this.executeClassMethod(obj, className, ctor.method, args);
+    return obj;
+  }
+
+  private async executeMethodCall(node: any): Promise<unknown> {
+    const objectValue = await this.evaluateExpression(node.object);
+    if (typeof objectValue !== 'object' || objectValue === null) this.runtimeError(`Cannot call method '${node.method}' on non-object value`);
+    const className = this.objectClasses.get(objectValue) || (objectValue as any).__className;
+    if (!className) this.runtimeError(`Cannot determine object class for method '${node.method}'`);
+    const found = this.findMethod(className, node.method);
+    if (!found) this.runtimeError(`Class '${className}' has no method '${node.method}'`);
+    return this.executeClassMethod(objectValue as Record<string, unknown>, found.owner, found.method, node.args || []);
+  }
+
+  private async executeSuperMethodCall(node: any): Promise<unknown> {
+    if (!this.currentThis || !this.currentClassName) this.runtimeError(`SUPER can only be used inside a class method`);
+    const cls = this.classDefinitions.get(this.currentClassName);
+    if (!cls || !cls.parent) this.runtimeError(`Class '${this.currentClassName}' has no superclass`);
+    const found = this.findMethod(cls.parent, node.method);
+    if (!found) this.runtimeError(`Superclass '${cls.parent}' has no method '${node.method}'`);
+    return this.executeClassMethod(this.currentThis, found.owner, found.method, node.args || []);
+  }
+
+  private async executeClassMethod(obj: Record<string, unknown>, ownerClass: string, method: any, args: any[]): Promise<unknown> {
+    const oldVars = new Map(this.variables);
+    const oldTypes = new Map(this.variableTypes);
+    const oldThis = this.currentThis;
+    const oldClass = this.currentClassName;
+    this.currentThis = obj;
+    this.currentClassName = ownerClass;
+    for (const [k, v] of Object.entries(obj)) {
+      if (k !== '__className') this.variables.set(k, v);
+    }
+    for (let i = 0; i < method.params.length; i++) {
+      const param = method.params[i];
+      this.variables.set(param.name, await this.evaluateExpression(args[i]));
+      this.variableTypes.set(param.name, param.type);
+    }
+    try {
+      for (const stmt of method.body as any[]) {
+        const result = await this.executeNode(stmt);
+        if (result instanceof ReturnSignal) return result.value;
+      }
+      return null;
+    } finally {
+      for (const key of Object.keys(obj)) {
+        if (key !== '__className' && this.variables.has(key)) obj[key] = this.variables.get(key);
+      }
+      this.variables = oldVars;
+      this.variableTypes = oldTypes;
+      this.currentThis = oldThis;
+      this.currentClassName = oldClass;
+    }
   }
   
   private checkTypeCompatibility(value: unknown, varName: string): void {
@@ -1633,6 +1900,7 @@ export class Interpreter {
   private isTypeCompatible(targetType: string, valueType: string, value: unknown, name: string, isArray: boolean): boolean {
     if (targetType === valueType) return true;
     if (targetType === 'REAL' && valueType === 'INTEGER') return true;
+    if (targetType === 'DATE' && (valueType === 'STRING' || valueType === 'CHAR')) return true;
     return false;
   }
 
@@ -2024,19 +2292,60 @@ export class Interpreter {
     if (this.openFiles.has(fn)) this.runtimeError(`File '${fn}' is already open`);
     this.fileContents.set(fn, []); this.openFiles.set(fn, 'write'); this.filePositions.set(fn, 0);
   }
+  private executeFileOpenAppend(node: any): void {
+    const fn = this.resolveFilename(node.filename as string);
+    if (this.openFiles.has(fn)) this.runtimeError(`File '${fn}' is already open`);
+    if (!this.fileContents.has(fn)) this.fileContents.set(fn, []);
+    const lines = this.fileContents.get(fn) ?? [];
+    this.openFiles.set(fn, 'append'); this.filePositions.set(fn, lines.length);
+  }
+  private executeFileOpenRandom(node: any): void {
+    const fn = this.resolveFilename(node.filename as string);
+    if (this.openFiles.has(fn)) this.runtimeError(`File '${fn}' is already open`);
+    if (!this.randomFileRecords.has(fn)) this.randomFileRecords.set(fn, []);
+    this.openFiles.set(fn, 'random'); this.filePositions.set(fn, 0);
+  }
   private async executeFileRead(node: any): Promise<void> {
     const fn = this.resolveFilename(node.filename as string);
-    if (this.openFiles.get(fn) !== 'read') this.runtimeError(`File '${fn}' is not open for reading`);
+    if (this.openFiles.get(fn) !== 'read' && this.openFiles.get(fn) !== 'random') this.runtimeError(`File '${fn}' is not open for reading`);
     const lines = this.fileContents.get(fn); const pos = this.filePositions.get(fn) ?? 0;
     if (!lines || pos >= lines.length) this.runtimeError(`End of file '${fn}' reached`);
     this.variables.set(node.variable as string, lines[pos]); this.filePositions.set(fn, pos + 1);
   }
   private async executeFileWrite(node: any): Promise<void> {
     const fn = this.resolveFilename(node.filename as string);
-    if (this.openFiles.get(fn) !== 'write') this.runtimeError(`File '${fn}' is not open for writing`);
+    const mode = this.openFiles.get(fn);
+    if (mode !== 'write' && mode !== 'append' && mode !== 'random') this.runtimeError(`File '${fn}' is not open for writing`);
     const value = await this.evaluateExpression(node.value);
-    const lines = this.fileContents.get(fn);
-    if (lines) lines.push(String(value ?? ''));
+    const lines = this.fileContents.get(fn) ?? [];
+    lines.push(String(value ?? ''));
+    this.fileContents.set(fn, lines);
+  }
+  private async executeFileSeek(node: any): Promise<void> {
+    const fn = this.resolveFilename(node.filename as string);
+    if (this.openFiles.get(fn) !== 'random') this.runtimeError(`File '${fn}' is not open for random access`);
+    const pos = Number(await this.evaluateExpression(node.position));
+    if (!Number.isInteger(pos) || pos < 1) this.runtimeError(`SEEK position must be a positive integer`);
+    this.filePositions.set(fn, pos - 1);
+  }
+  private async executeFileGetRecord(node: any): Promise<void> {
+    const fn = this.resolveFilename(node.filename as string);
+    if (this.openFiles.get(fn) !== 'random') this.runtimeError(`File '${fn}' is not open for random access`);
+    const records = this.randomFileRecords.get(fn) ?? [];
+    const pos = this.filePositions.get(fn) ?? 0;
+    if (pos < 0 || pos >= records.length || records[pos] === undefined) this.runtimeError(`No record at position ${pos + 1} in file '${fn}'`);
+    if (!this.variableTypes.has(node.variable as string)) this.runtimeError(`Undefined variable '${node.variable}'`);
+    this.variables.set(node.variable as string, this.deepClone(records[pos]));
+    this.filePositions.set(fn, pos + 1);
+  }
+  private async executeFilePutRecord(node: any): Promise<void> {
+    const fn = this.resolveFilename(node.filename as string);
+    if (this.openFiles.get(fn) !== 'random') this.runtimeError(`File '${fn}' is not open for random access`);
+    const records = this.randomFileRecords.get(fn) ?? [];
+    const pos = this.filePositions.get(fn) ?? 0;
+    records[pos] = this.deepClone(await this.evaluateExpression(node.value));
+    this.randomFileRecords.set(fn, records);
+    this.filePositions.set(fn, pos + 1);
   }
   private executeFileClose(node: any): void {
     const fn = this.resolveFilename(node.filename as string);
@@ -2068,6 +2377,7 @@ export class Interpreter {
       case 'StringLiteral': return node.value;
       case 'CharLiteral': return node.value;
       case 'BooleanLiteral': return node.value;
+      case 'DateLiteral': return node.value;
       case 'ArrayAccess': {
         const arrInfo = this.arrays.get(node.name);
         if (arrInfo) {
@@ -2100,6 +2410,9 @@ export class Interpreter {
         return { __pointerTarget: varName };
       }
       case 'FunctionCall': return this.executeFunctionCall(node);
+      case 'MethodCall': return this.executeMethodCall(node);
+      case 'SuperMethodCall': return this.executeSuperMethodCall(node);
+      case 'ObjectCreation': return this.createObject(node.className, node.args || []);
       case 'ProcedureCall': return this.executeProcedureCall(node);
       case 'BinaryExpression': return this.evalBinary(node);
       case 'UnaryExpression': return this.evalUnary(node);
@@ -2107,10 +2420,23 @@ export class Interpreter {
     return null;
   }
 
+  private findFieldVisibility(className: string, fieldName: string): 'public' | 'private' {
+    const cls = this.classDefinitions.get(className);
+    if (!cls) return 'public';
+    const field = cls.fields.find((f: any) => f.name === fieldName);
+    if (field) return field.visibility || 'public';
+    if (cls.parent) return this.findFieldVisibility(cls.parent, fieldName);
+    return 'public';
+  }
+
   private async evaluateFieldAccess(node: any): Promise<unknown> {
     const base = await this.evaluateExpression(node.record);
     if (typeof base !== 'object' || base === null) this.runtimeError(`Cannot access field on non-record value`);
     const record = base as Record<string, unknown>;
+    const className = this.objectClasses.get(record) || (record as any).__className;
+    if (className && this.findFieldVisibility(className, node.field) === 'private' && this.currentThis !== record) {
+      this.runtimeError(`Cannot access private field '${node.field}' of class '${className}'`);
+    }
     if (!(node.field in record)) this.runtimeError(`Record has no field '${node.field}'`);
     return record[node.field];
   }
