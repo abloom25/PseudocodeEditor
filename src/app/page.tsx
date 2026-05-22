@@ -629,27 +629,27 @@ export default function PseudocodePage() {
     <>
       {/* Syllabus selection dialog for first visit */}
       <Dialog open={showSyllabusDialog} onOpenChange={(open) => { if (!open) setShowSyllabusDialog(false); }}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className={`sm:max-w-md ${styles.outputBg} ${styles.outputBorder} ${styles.text}`} onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Welcome to Pseudocode IDE</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className={styles.headerText}>Welcome to Pseudocode Editor</DialogTitle>
+            <DialogDescription className={styles.outputDimText}>
               Choose your syllabus to get started. You can change this later from the top menu.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
             <button
               onClick={() => { setSyllabus('igcse-0478'); setShowSyllabusDialog(false); }}
-              className="flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:bg-purple-500/10 hover:border-purple-500/50"
+              className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors ${styles.headerBg} ${styles.outputLineBorder} hover:bg-[#162342] hover:border-[#6AA9FF]`}
             >
-              <span className="font-semibold text-base">Cambridge IGCSE 0478</span>
-              <span className="text-sm text-muted-foreground">Computer Science — O Level pseudocode standard</span>
+              <span className={`font-semibold text-base ${styles.headerText}`}>Cambridge IGCSE 0478</span>
+              <span className={`text-sm ${styles.outputDimText}`}>Computer Science — O Level pseudocode standard</span>
             </button>
             <button
               onClick={() => { setSyllabus('alevel-9618'); setShowSyllabusDialog(false); }}
-              className="flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:bg-blue-500/10 hover:border-blue-500/50"
+              className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors ${styles.headerBg} ${styles.outputLineBorder} hover:bg-[#162342] hover:border-[#6AA9FF]`}
             >
-              <span className="font-semibold text-base">Cambridge A-Level 9618</span>
-              <span className="text-sm text-muted-foreground">Computer Science — A Level pseudocode standard</span>
+              <span className={`font-semibold text-base ${styles.headerText}`}>Cambridge A-Level 9618</span>
+              <span className={`text-sm ${styles.outputDimText}`}>Computer Science — A Level pseudocode standard</span>
             </button>
           </div>
         </DialogContent>
