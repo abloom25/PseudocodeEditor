@@ -1,6 +1,6 @@
 export type Syllabus = 'igcse-0478' | 'alevel-9618';
 
-export type EditorTheme = 'nightlight' | 'dark' | 'light' | 'monokai' | 'dracula' | 'solarized-dark' | 'solarized-light';
+export type EditorTheme = 'nightlight' | 'dark' | 'light' | 'monokai' | 'dracula' | 'solarized-dark' | 'solarized-light' | 'forest';
 
 export type DesktopLayout = 'side-by-side' | 'stacked' | 'editor-only' | 'panel-only';
 

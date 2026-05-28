@@ -12,7 +12,8 @@ export function resolveThemeName(theme: string | undefined): EditorTheme {
     theme === 'monokai' ||
     theme === 'dracula' ||
     theme === 'solarized-dark' ||
-    theme === 'solarized-light'
+    theme === 'solarized-light' ||
+    theme === 'forest'
   ) {
     return theme;
   }
@@ -40,6 +41,8 @@ export function getThemeColors(themeName: string): Record<string, string> {
       return { key: 'text-yellow-600', string: 'text-green-700', number: 'text-cyan-600', boolean: 'text-orange-600', null: 'text-gray-500' };
     case 'solarized-light':
       return { key: 'text-yellow-700', string: 'text-green-700', number: 'text-cyan-700', boolean: 'text-orange-700', null: 'text-gray-500' };
+    case 'forest':
+      return { key: 'text-[#62ADCB]', string: 'text-[#A3D1C8]', number: 'text-[#EBF4EA]', boolean: 'text-[#62ADCB]', null: 'text-[#587E78]' };
     case 'light':
       return { key: 'text-purple-600', string: 'text-green-600', number: 'text-cyan-600', boolean: 'text-amber-600', null: 'text-gray-500' };
     default:

@@ -201,6 +201,12 @@ body {
   color: rgb(253 246 227);
 }
 
+[data-theme="forest"] ::selection,
+.theme-forest ::selection {
+  background-color: rgb(163 209 200 / 0.65);
+  color: rgb(40 54 52);
+}
+
 /* Monaco Editor 的选中样式需要单独配置，在页面组件中处理 */
 
 /* 编辑器和输出面板的滚动条 */

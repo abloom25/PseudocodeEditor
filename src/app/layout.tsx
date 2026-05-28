@@ -70,7 +70,7 @@ export default function RootLayout({
         <ThemeProvider
           attribute="data-theme"
           defaultTheme="nightlight"
-          themes={['nightlight', 'dark', 'light', 'monokai', 'dracula', 'solarized-dark', 'solarized-light']}
+          themes={['nightlight', 'dark', 'light', 'monokai', 'dracula', 'solarized-dark', 'solarized-light', 'forest']}
           storageKey="pseudocode-theme"
         >
           {isDev && <Inspector />}

@@ -795,6 +795,12 @@ export default function PseudocodePage() {
               >
                 🌄 Solarized Light
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setThemeByName('forest')}
+                className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${currentTheme === 'forest' ? 'bg-[#3C4844]' : ''}`}
+              >
+                Forest
+              </DropdownMenuItem>
               <DropdownMenuSeparator className={`${styles.dropdownBorder}`} />
               <div className={`px-2 py-1.5 text-xs font-semibold ${styles.outputDimText}`}>Layout</div>
               <DropdownMenuItem
@@ -1595,4 +1601,3 @@ export default function PseudocodePage() {
     </>
   );
 }
-

@@ -510,5 +510,91 @@
       "editor.inactiveSelectionBackground": "#eee8d5",
       "editorGutter.background": "#fdf6e3"
     }
+  },
+  "pseudocode-forest": {
+    "base": "vs-dark",
+    "inherit": true,
+    "rules": [
+      {
+        "token": "comment",
+        "foreground": "587E78",
+        "fontStyle": "italic"
+      },
+      {
+        "token": "string",
+        "foreground": "A3D1C8"
+      },
+      {
+        "token": "string.escape",
+        "foreground": "A3D1C8"
+      },
+      {
+        "token": "string.quote",
+        "foreground": "A3D1C8"
+      },
+      {
+        "token": "string.invalid",
+        "foreground": "EBF4EA",
+        "background": "8A4A4A"
+      },
+      {
+        "token": "number",
+        "foreground": "EBF4EA"
+      },
+      {
+        "token": "number.float",
+        "foreground": "EBF4EA"
+      },
+      {
+        "token": "keyword",
+        "foreground": "62ADCB",
+        "fontStyle": "bold"
+      },
+      {
+        "token": "keyword.builtin",
+        "foreground": "A3D1C8",
+        "fontStyle": "bold"
+      },
+      {
+        "token": "type",
+        "foreground": "62ADCB"
+      },
+      {
+        "token": "identifier",
+        "foreground": "EBF4EA"
+      },
+      {
+        "token": "operator",
+        "foreground": "A3D1C8"
+      },
+      {
+        "token": "delimiter",
+        "foreground": "A3D1C8"
+      }
+    ],
+    "colors": {
+      "editor.background": "#283634",
+      "editor.foreground": "#EBF4EA",
+      "editor.lineHighlightBackground": "#3C4844",
+      "editorCursor.foreground": "#A3D1C8",
+      "editor.selectionBackground": "#587E7888",
+      "editor.inactiveSelectionBackground": "#3C484488",
+      "editorIndentGuide.background1": "#3C4844",
+      "editorIndentGuide.activeBackground1": "#62ADCB",
+      "editorWhitespace.foreground": "#3C4844",
+      "editorBracketMatch.background": "#17567466",
+      "editorBracketMatch.border": "#62ADCB",
+      "editorLineNumber.foreground": "#587E78",
+      "editorLineNumber.activeForeground": "#A3D1C8",
+      "editorGutter.background": "#283634",
+      "editorSuggestWidget.background": "#1E2A28",
+      "editorSuggestWidget.foreground": "#EBF4EA",
+      "editorSuggestWidget.selectedBackground": "#3C4844",
+      "editorSuggestWidget.border": "#3C4844",
+      "editorHoverWidget.background": "#1E2A28",
+      "editorHoverWidget.foreground": "#EBF4EA",
+      "editorHoverWidget.border": "#3C4844",
+      "focusBorder": "#62ADCB"
+    }
   }
 }
