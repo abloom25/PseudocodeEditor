@@ -1098,6 +1098,7 @@ export class Interpreter {
   private onOutput?: (text: string) => void;
   private inputCallback?: (prompt?: string) => Promise<unknown>;
   private maxIterations = 10000;
+  private loopYieldInterval = 50;
   private maxCallDepth = 500;
   private currentIteration = 0;
   private callDepth = 0;
@@ -1171,6 +1172,33 @@ export class Interpreter {
 
   private runtimeError(msg: string): never {
     throw new Error(`${msg} at line ${this.currentLine}`);
+  }
+
+  private async yieldToHost(): Promise<void> {
+    if (typeof MessageChannel === 'undefined') {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+      return;
+    }
+    await new Promise<void>(resolve => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => {
+        channel.port1.close();
+        channel.port2.close();
+        resolve();
+      };
+      channel.port2.postMessage(undefined);
+    });
+  }
+
+  private async checkLoopGuard(): Promise<void> {
+    if (this.aborted) throw new Error('Execution aborted by user');
+    if (++this.currentIteration > this.maxIterations) {
+      this.runtimeError('Maximum iterations exceeded');
+    }
+    if (this.currentIteration % this.loopYieldInterval === 0) {
+      await this.yieldToHost();
+      if (this.aborted) throw new Error('Execution aborted by user');
+    }
   }
 
   private async executeNode(node: any): Promise<unknown> {
@@ -1464,8 +1492,7 @@ export class Interpreter {
       ? () => (this.variables.get(node.variable as string) as number) <= end
       : () => (this.variables.get(node.variable as string) as number) >= end;
     while (test()) {
-      if (this.aborted) throw new Error('Execution aborted by user');
-      if (++this.currentIteration > this.maxIterations) this.runtimeError('Maximum iterations exceeded');
+      await this.checkLoopGuard();
       for (const s of node.body as any[]) { const r = await this.executeNode(s); if (r instanceof ReturnSignal) throw r; }
       this.variables.set(node.variable as string, (this.variables.get(node.variable as string) as number) + step);
     }
@@ -1473,16 +1500,14 @@ export class Interpreter {
 
   private async executeRepeat(node: any): Promise<void> {
     do {
-      if (this.aborted) throw new Error('Execution aborted by user');
-      if (++this.currentIteration > this.maxIterations) this.runtimeError('Maximum iterations exceeded');
+      await this.checkLoopGuard();
       for (const s of node.body as any[]) { const r = await this.executeNode(s); if (r instanceof ReturnSignal) throw r; }
     } while (!(await this.evaluateExpression(node.condition)));
   }
 
   private async executeWhile(node: any): Promise<void> {
     while (await this.evaluateExpression(node.condition)) {
-      if (this.aborted) throw new Error('Execution aborted by user');
-      if (++this.currentIteration > this.maxIterations) this.runtimeError('Maximum iterations exceeded');
+      await this.checkLoopGuard();
       for (const s of node.body as any[]) { const r = await this.executeNode(s); if (r instanceof ReturnSignal) throw r; }
     }
   }

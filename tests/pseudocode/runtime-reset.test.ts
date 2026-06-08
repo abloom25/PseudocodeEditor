@@ -75,3 +75,13 @@ OUTPUT OldValue()
   assert.deepEqual(await parser.run(firstProgram), ['7']);
   await assert.rejects(parser.run('OUTPUT OldValue()'), /undefined function/i);
 });
+
+test('IGCSE infinite loops yield to the event loop and can be aborted', async () => {
+  const parser = new PseudocodeParser();
+  const execution = parser.run(`
+WHILE TRUE DO
+ENDWHILE
+`);
+  setTimeout(() => parser.abort(), 0);
+  await assert.rejects(execution, /aborted by user/i);
+});

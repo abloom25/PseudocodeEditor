@@ -187,6 +187,16 @@ ENDWHILE
 `, /maximum iterations/i);
 });
 
+test('A-Level infinite loops yield to the event loop and can be aborted', async () => {
+  const parser = new ALevelParser();
+  const execution = parser.run(`
+WHILE TRUE
+ENDWHILE
+`);
+  setTimeout(() => parser.abort(), 0);
+  await assert.rejects(execution, /aborted by user/i);
+});
+
 test('procedure calls validate arity, types and BYREF variables', async () => {
   await expectRunError(`
 PROCEDURE Show(Value : INTEGER)
