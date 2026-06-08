@@ -28,7 +28,7 @@ import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning } from 'lucide-react';
+import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning, MessageSquareText, Bug } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +63,7 @@ export default function PseudocodePage() {
   const [syllabus, setSyllabusState] = useState<Syllabus>('igcse-0478');
   const [showSyllabusDialog, setShowSyllabusDialog] = useState(false);
   const [showBugDialog, setShowBugDialog] = useState(false);
+  const [reportType, setReportType] = useState<'feedback' | 'bug'>('feedback');
   const [bugDescription, setBugDescription] = useState('');
   const [bugCopied, setBugCopied] = useState(false);
   const [bugSubmitting, setBugSubmitting] = useState(false);
@@ -347,7 +348,7 @@ export default function PseudocodePage() {
     bugDescription,
   ]);
 
-  const submitBugReport = useCallback(async () => {
+  const submitReport = useCallback(async () => {
     setBugSubmitting(true);
     setBugSubmitResult(null);
 
@@ -356,13 +357,33 @@ export default function PseudocodePage() {
         throw new Error('Sentry is not enabled in this environment');
       }
 
+      const feedbackMessage = bugDescription.trim() || t('noAdditionalDescription');
+      if (reportType === 'feedback') {
+        if (!bugDescription.trim()) {
+          throw new Error('Feedback message is required');
+        }
+        const eventId = Sentry.captureFeedback({
+          message: bugDescription.trim(),
+          source: 'pseudocode-editor',
+          url: window.location.href,
+          tags: {
+            report_kind: 'feedback',
+            syllabus,
+            locale,
+          },
+        });
+        const flushed = await Sentry.flush(10_000);
+        if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
+        setBugSubmitResult({ status: 'success', eventId });
+        return;
+      }
+
       const report = generateBugReport();
       const reportData = JSON.parse(report) as Record<string, unknown>;
-      const feedbackMessage = bugDescription.trim() || t('noAdditionalDescription');
       const eventId = Sentry.withScope(scope => {
         scope.setLevel('error');
         scope.setTag('report.source', 'pseudocode-editor');
-        scope.setTag('report.kind', errorDiagnostic ? 'interpreter-error' : 'user-feedback');
+        scope.setTag('report.kind', errorDiagnostic ? 'interpreter-error' : 'bug-report');
         scope.setTag('syllabus', syllabus);
         scope.setTag('locale', locale);
         scope.setContext('pseudocode_report', {
@@ -401,7 +422,7 @@ export default function PseudocodePage() {
 
       setBugSubmitResult({ status: 'success', eventId });
     } catch (submissionError) {
-      console.error('Failed to submit bug report:', submissionError);
+      console.error('Failed to submit report:', submissionError);
       setBugSubmitResult({ status: 'error' });
     } finally {
       setBugSubmitting(false);
@@ -412,6 +433,7 @@ export default function PseudocodePage() {
     generateBugReport,
     locale,
     output.length,
+    reportType,
     syllabus,
     t,
     virtualFiles,
@@ -950,15 +972,16 @@ export default function PseudocodePage() {
           size="sm"
           className={`${styles.buttonText} ${styles.buttonHover}`}
           onClick={() => {
+            setReportType('feedback');
             setBugDescription('');
             setBugCopied(false);
             setBugSubmitResult(null);
             setShowBugDialog(true);
           }}
-          title={t('reportBug')}
+          title={t('report')}
         >
           <MessageCircleWarning className="w-4 h-4 mr-0 md:mr-1" />
-          <span className="hidden md:inline text-xs">{t('bug')}</span>
+          <span className="hidden md:inline text-xs">{t('report')}</span>
         </Button>
         {isRunning ? (
           <Button onClick={stopCode} size="sm" className="bg-red-600 hover:bg-red-700 text-white ml-1 md:ml-2">
@@ -1681,45 +1704,93 @@ export default function PseudocodePage() {
     <Dialog open={showBugDialog} onOpenChange={setShowBugDialog}>
       <DialogContent className={`sm:max-w-lg ${styles.outputBg} ${styles.outputBorder} ${styles.text}`}>
         <DialogHeader>
-          <DialogTitle className={styles.headerText}>{t('reportBug')}</DialogTitle>
+          <DialogTitle className={styles.headerText}>{t('report')}</DialogTitle>
           <DialogDescription className={styles.outputDimText}>
-            {t('bugDescription')}
+            {t('reportDescription')}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              aria-pressed={reportType === 'feedback'}
+              onClick={() => {
+                setReportType('feedback');
+                setBugSubmitResult(null);
+              }}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                reportType === 'feedback'
+                  ? `${styles.runBtnBg} ${styles.runBtnText}`
+                  : `${styles.headerBg} ${styles.outputLineBorder} ${styles.buttonHover}`
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <MessageSquareText className="h-4 w-4" />
+                {t('reportFeedback')}
+              </span>
+              <span className="mt-1 block text-xs opacity-75">{t('reportFeedbackDescription')}</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={reportType === 'bug'}
+              onClick={() => {
+                setReportType('bug');
+                setBugSubmitResult(null);
+              }}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                reportType === 'bug'
+                  ? `${styles.runBtnBg} ${styles.runBtnText}`
+                  : `${styles.headerBg} ${styles.outputLineBorder} ${styles.buttonHover}`
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Bug className="h-4 w-4" />
+                {t('reportBug')}
+              </span>
+              <span className="mt-1 block text-xs opacity-75">{t('reportBugDescription')}</span>
+            </button>
+          </div>
           <div>
-            <label className={`text-sm font-medium mb-1.5 block ${styles.headerText}`}>{t('whatWentWrong')}</label>
+            <label className={`text-sm font-medium mb-1.5 block ${styles.headerText}`}>
+              {reportType === 'feedback' ? t('yourFeedback') : t('whatWentWrong')}
+            </label>
             <Textarea
               value={bugDescription}
               onChange={(e) => {
                 setBugDescription(e.target.value);
                 setBugSubmitResult(null);
               }}
-              placeholder={t('bugPlaceholder')}
+              placeholder={reportType === 'feedback' ? t('feedbackPlaceholder') : t('bugPlaceholder')}
               rows={4}
               className={`resize-none ${styles.headerBg} ${styles.outputLineBorder} ${styles.headerText} placeholder:text-current placeholder:opacity-50`}
             />
           </div>
-          <div className={`text-xs ${styles.outputDimText} space-y-1`}>
-            <p>{t('automaticallyIncluded')}</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-1">
-              <li>{t('currentCode')}</li>
-              <li>{t('outputErrors')}</li>
-              {Object.keys(virtualFiles).length > 0 && (
-                <li>
-                  {t('virtualFileCount', {
-                    count: Object.keys(virtualFiles).length,
-                    label: Object.keys(virtualFiles).length === 1 ? t('fileSingular') : t('filePlural'),
-                  })}
-                </li>
-              )}
-              <li>{t('environmentInfo')}</li>
-            </ul>
-            <p className="pt-1">{t('sentryUploadNotice')}</p>
-          </div>
-          <div className={`text-xs rounded-md p-3 max-h-40 overflow-auto font-mono border ${styles.headerBg} ${styles.headerText} ${styles.outputLineBorder}`}>
-            <pre className="whitespace-pre-wrap break-all">{generateBugReport().slice(0, 800)}{generateBugReport().length > 800 ? `\n${t('truncatedPreview')}` : ''}</pre>
-          </div>
+          {reportType === 'bug' ? (
+            <>
+              <div className={`text-xs ${styles.outputDimText} space-y-1`}>
+                <p>{t('automaticallyIncluded')}</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-1">
+                  <li>{t('currentCode')}</li>
+                  <li>{t('outputErrors')}</li>
+                  {Object.keys(virtualFiles).length > 0 && (
+                    <li>
+                      {t('virtualFileCount', {
+                        count: Object.keys(virtualFiles).length,
+                        label: Object.keys(virtualFiles).length === 1 ? t('fileSingular') : t('filePlural'),
+                      })}
+                    </li>
+                  )}
+                  <li>{t('environmentInfo')}</li>
+                </ul>
+                <p className="pt-1">{t('sentryUploadNotice')}</p>
+              </div>
+              <div className={`text-xs rounded-md p-3 max-h-40 overflow-auto font-mono border ${styles.headerBg} ${styles.headerText} ${styles.outputLineBorder}`}>
+                <pre className="whitespace-pre-wrap break-all">{generateBugReport().slice(0, 800)}{generateBugReport().length > 800 ? `\n${t('truncatedPreview')}` : ''}</pre>
+              </div>
+            </>
+          ) : (
+            <p className={`text-xs ${styles.outputDimText}`}>{t('feedbackUploadNotice')}</p>
+          )}
           {bugSubmitResult && (
             <p
               role="status"
@@ -1736,32 +1807,40 @@ export default function PseudocodePage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2 justify-end">
+          {reportType === 'bug' && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadBugReport}
+                className={`${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                {t('download')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyBugReport}
+                className={bugCopied ? 'bg-green-600 hover:bg-green-700 text-white' : `${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
+              >
+                {bugCopied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />}
+                {bugCopied ? t('copied') : t('copyClipboard')}
+              </Button>
+            </>
+          )}
           <Button
-            variant="outline"
             size="sm"
-            onClick={downloadBugReport}
-            className={`${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
-          >
-            <Download className="w-4 h-4 mr-1.5" />
-            {t('download')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyBugReport}
-            className={bugCopied ? 'bg-green-600 hover:bg-green-700 text-white' : `${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
-          >
-            {bugCopied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />}
-            {bugCopied ? t('copied') : t('copyClipboard')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={submitBugReport}
-            disabled={bugSubmitting}
+            onClick={submitReport}
+            disabled={bugSubmitting || (reportType === 'feedback' && !bugDescription.trim())}
             className={`${styles.runBtnBg} ${styles.runBtnHover} ${styles.runBtnText}`}
           >
             <MessageCircleWarning className="w-4 h-4 mr-1.5" />
-            {bugSubmitting ? t('submittingReport') : t('submitReport')}
+            {bugSubmitting
+              ? t('submittingReport')
+              : reportType === 'feedback'
+                ? t('submitFeedback')
+                : t('submitBugReport')}
           </Button>
         </div>
       </DialogContent>
