@@ -42,11 +42,9 @@
       "EOF": "### 文件结束检测\n\n**语法**: `EOF(\"filename\")`\n\n**返回值**: `BOOLEAN`",
       "TYPE": "### TYPE - 用户自定义类型 (A-Level)\n\n**语法**:\n```pseudocode\nTYPE MyType = (Val1, Val2, ...)    // 枚举类型\nTYPE MyPtr = ^BaseType            // 指针类型\nTYPE MyRecord                     // 记录类型\n    DECLARE field1 : TYPE\n    DECLARE field2 : TYPE\nENDTYPE\n```\n\n用于定义枚举、指针或记录类型。",
       "ENDTYPE": "### ENDTYPE - 类型定义结束\n\n标记 `TYPE` 语句的结束。",
-      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\nENDTYPE\n```\n\n用于定义集合常量。",
+      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\n```\n\n`DEFINE` 是单行集合定义，不使用 `ENDTYPE`。",
       "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。",
       "DATE": "### DATE - 日期类型 (A-Level)\n\n**语法**: `DECLARE name : DATE`\n\n**示例**:\n```pseudocode\nDECLARE DateOfBirth : DATE\nDateOfBirth <- 02/01/2005\n```\n\n当前按日期文本保存和输出。",
-      "ELSEIF": "### ELSEIF - 多分支条件\n\n**语法**:\n```pseudocode\nIF condition1 THEN\n    // statements\nELSEIF condition2 THEN\n    // statements\nELSE\n    // statements\nENDIF\n```",
-      "ENDFOR": "### ENDFOR - FOR 循环结束\n\nA-Level 可使用 `ENDFOR` 结束 FOR 循环。\n\n**示例**:\n```pseudocode\nFOR i <- 1 TO 10\n    OUTPUT i\nENDFOR\n```",
       "APPEND": "### APPEND - 文件追加模式\n\n**语法**: `OPENFILE filename FOR APPEND`\n\n写入内容会追加到文件末尾，不清空原文件。",
       "RANDOM": "### RANDOM - 随机访问文件模式\n\n**语法**: `OPENFILE filename FOR RANDOM`\n\n配合 `SEEK`、`GETRECORD` 和 `PUTRECORD` 使用。",
       "SEEK": "### SEEK - 定位随机文件记录\n\n**语法**: `SEEK filename, position`\n\n`position` 从 1 开始。",
@@ -93,14 +91,18 @@
       "CALL": "### 调用过程\n\n**语法**: `CALL <ProcedureName>(Value1, Value2...)`\n\nA-Level 必须使用 CALL 关键字调用过程。\n\n**示例**:\n```pseudocode\nCALL PrintMessage(\"Hello\")\nCALL AddNumbers(a, b)\n```",
       "TYPE": "### TYPE - 用户自定义类型 (A-Level)\n\n**语法**:\n```pseudocode\nTYPE MyType = (Val1, Val2, ...)    // 枚举类型\nTYPE MyPtr = ^BaseType              // 指针类型\nTYPE MyRecord                      // 记录类型\n    DECLARE field1 : TYPE\n    DECLARE field2 : TYPE\nENDTYPE\n```\n\n用于定义枚举、指针或记录类型。",
       "ENDTYPE": "### ENDTYPE - 类型定义结束\n\n标记 `TYPE` 语句的结束。",
-      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\nENDTYPE\n```\n\n用于定义集合常量。",
+      "DEFINE": "### DEFINE - 集合定义 (A-Level)\n\n**语法**:\n```pseudocode\nDEFINE MySet ('A', 'E', 'I', 'O', 'U') : LetterSet\n```\n\n`DEFINE` 是单行集合定义，不使用 `ENDTYPE`。",
       "SET": "### SET - 集合类型 (A-Level)\n\n**语法**: `SET OF elementType`\n\n**示例**:\n```pseudocode\nTYPE LetterSet = SET OF CHAR\n```\n\n定义元素类型相同的集合。"
     },
     "builtins": {
       "MID": "### ✂️ MID - 提取子字符串 (A-Level)\n\n**语法**: `MID(string, start, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nMID(\"Hello\", 2, 3) → \"ell\"\nMID(\"Hello World\", 1, 5) → \"Hello\"\n```",
       "RIGHT": "### ✂️ RIGHT - 从右侧提取子字符串 (A-Level)\n\n**语法**: `RIGHT(string, length)`\n\n**返回值**: `STRING`\n\n**示例**:\n```pseudocode\nRIGHT(\"Hello\", 3) → \"llo\"\nRIGHT(\"Hello World\", 5) → \"World\"\n```",
       "RAND": "### 🎲 RAND - 随机数 (A-Level)\n\n**语法**: `RAND(x)`\n\n**返回值**: `REAL`（0 到 x 之间）\n\n**示例**:\n```pseudocode\nRAND(1) → 0.12345\nRAND(100) → 45.678\n```",
-      "INT": "### 🔢 INT - 取整 (A-Level)\n\n**语法**: `INT(x)`\n\n**返回值**: `INTEGER`\n\n返回不大于 x 的最大整数。\n\n**示例**:\n```pseudocode\nINT(3.7) → 3\nINT(-2.3) → -3\n```"
+      "LCASE": "### LCASE - 字符转小写 (A-Level)\n\n**语法**: `LCASE(character)`\n\n**参数**: `CHAR`\n\n**返回值**: `CHAR`",
+      "UCASE": "### UCASE - 字符转大写 (A-Level)\n\n**语法**: `UCASE(character)`\n\n**参数**: `CHAR`\n\n**返回值**: `CHAR`",
+      "DIV": "### DIV - 整数除法运算符 (A-Level)\n\n**语法**: `integer1 DIV integer2`\n\n**返回值**: `INTEGER`\n\n示例：`7 DIV 2` 得到 `3`。",
+      "MOD": "### MOD - 余数运算符 (A-Level)\n\n**语法**: `integer1 MOD integer2`\n\n**返回值**: `INTEGER`\n\n示例：`7 MOD 2` 得到 `1`。",
+      "INT": "### INT - 取整数部分 (A-Level)\n\n**语法**: `INT(x)`\n\n**返回值**: `INTEGER`\n\n舍弃小数部分并向零截断。\n\n**示例**:\n```pseudocode\nINT(3.7) → 3\nINT(-2.3) → -2\n```"
     }
   }
 }

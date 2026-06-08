@@ -1,9 +1,9 @@
 {
   "keywords": [
     "DECLARE", "CONSTANT", "INPUT", "OUTPUT",
-    "IF", "THEN", "ELSE", "ELSEIF", "ENDIF",
+    "IF", "THEN", "ELSE", "ENDIF",
     "CASE", "OF", "OTHERWISE", "ENDCASE",
-    "FOR", "TO", "STEP", "NEXT", "ENDFOR",
+    "FOR", "TO", "STEP", "NEXT",
     "REPEAT", "UNTIL", "WHILE", "DO", "ENDWHILE",
     "PROCEDURE", "FUNCTION", "ENDPROCEDURE", "ENDFUNCTION",
     "RETURNS", "RETURN", "ARRAY", "AND", "OR", "NOT",
@@ -17,10 +17,10 @@
   "builtins": ["LENGTH", "LCASE", "UCASE", "SUBSTRING", "MID", "RIGHT", "ROUND", "RANDOM", "RAND", "DIV", "MOD", "EOF", "INT"],
   "igcse-specific": {
     "keywords": ["DO"],
-    "builtins": ["SUBSTRING", "RANDOM"]
+    "builtins": ["SUBSTRING", "ROUND", "RANDOM"]
   },
   "alevel-specific": {
-    "keywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER", "ELSEIF", "ENDFOR"],
-    "builtins": ["MID", "RIGHT", "RAND", "INT"]
+    "keywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER"],
+    "builtins": ["MID", "RIGHT", "RAND", "INT", "DIV", "MOD"]
   }
 }

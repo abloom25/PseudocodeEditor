@@ -1,13 +1,8 @@
 {
   "common": {
-    "dataTypes": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN", "DATE"],
+    "dataTypes": ["INTEGER", "REAL", "CHAR", "STRING", "BOOLEAN"],
     "functions": [
       { "name": "LENGTH(string)", "desc": "返回字符串长度" },
-      { "name": "LCASE(string)", "desc": "转换为小写" },
-      { "name": "UCASE(string)", "desc": "转换为大写" },
-      { "name": "ROUND(number, places)", "desc": "四舍五入" },
-      { "name": "DIV(a, b)", "desc": "整数除法" },
-      { "name": "MOD(a, b)", "desc": "取模运算" },
       { "name": "EOF(filename)", "desc": "检测文件结束" }
     ],
     "controlStructures": [
@@ -25,13 +20,8 @@
     "fileOperations": [
       "OPENFILE filename FOR READ",
       "OPENFILE filename FOR WRITE",
-      "OPENFILE filename FOR APPEND",
-      "OPENFILE filename FOR RANDOM",
       "READFILE filename, variable",
       "WRITEFILE filename, value",
-      "SEEK filename, position",
-      "GETRECORD filename, variable",
-      "PUTRECORD filename, variable",
       "CLOSEFILE filename"
     ],
     "functionsProcedures": [
@@ -46,7 +36,12 @@
   "igcse-0478": {
     "extraKeywords": ["DO"],
     "extraFunctions": [
+      { "name": "LCASE(string)", "desc": "转换为小写" },
+      { "name": "UCASE(string)", "desc": "转换为大写" },
       { "name": "SUBSTRING(string, start, length)", "desc": "提取子字符串" },
+      { "name": "ROUND(number, places)", "desc": "四舍五入" },
+      { "name": "DIV(a, b)", "desc": "整数除法函数" },
+      { "name": "MOD(a, b)", "desc": "取模函数" },
       { "name": "RANDOM()", "desc": "0-1 随机数" }
     ],
     "extraControlStructures": [
@@ -60,12 +55,17 @@
     ]
   },
   "alevel-9618": {
-    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER", "ELSEIF", "ENDFOR"],
+    "extraDataTypes": ["DATE"],
+    "extraKeywords": ["TYPE", "ENDTYPE", "DEFINE", "SET", "DATE", "APPEND", "RANDOM", "SEEK", "GETRECORD", "PUTRECORD", "CLASS", "ENDCLASS", "PUBLIC", "PRIVATE", "NEW", "INHERITS", "SUPER"],
     "extraFunctions": [
+      { "name": "LCASE(character)", "desc": "将一个 CHAR 转换为小写" },
+      { "name": "UCASE(character)", "desc": "将一个 CHAR 转换为大写" },
       { "name": "MID(string, start, length)", "desc": "提取子字符串" },
       { "name": "RIGHT(string, length)", "desc": "从右侧提取" },
       { "name": "RAND(x)", "desc": "0-x 随机数" },
-      { "name": "INT(x)", "desc": "取整" }
+      { "name": "INT(x)", "desc": "向零截取整数部分" },
+      { "name": "a DIV b", "desc": "整数除法运算符" },
+      { "name": "a MOD b", "desc": "余数运算符" }
     ],
     "extraControlStructures": [
       "WHILE condition ... ENDWHILE  // 无需 DO",
@@ -78,10 +78,10 @@
       "CALL ProcedureName(args)  // 必须使用 CALL"
     ],
     "userDefinedTypes": [
-      "TYPE MyEnum = (Val1, Val2) ... ENDTYPE  // 枚举类型",
-      "TYPE MyPtr = ^BaseType ... ENDTYPE       // 指针类型",
+      "TYPE MyEnum = (Val1, Val2)               // 枚举类型（单行）",
+      "TYPE MyPtr = ^BaseType                   // 指针类型（单行）",
       "TYPE MyRecord ... ENDTYPE                 // 记录类型",
-      "TYPE DateOfBirth : DATE                  // 日期类型",
+      "DECLARE DateOfBirth : DATE               // 日期变量",
       "  DECLARE field1 : TYPE",
       "  DECLARE field2 : TYPE",
       "DECLARE var : MyRecord                   // 声明记录变量",
@@ -90,7 +90,7 @@
       "arr[i].field                              // 数组记录字段访问",
       "MyPtr <- ^var                            // 指针赋值（取地址）",
       "value <- MyPtr^                          // 指针解引用",
-      "DEFINE MySet ('A','E') : LetterSet ... ENDTYPE  // 集合定义",
+      "DEFINE MySet ('A','E') : LetterSet       // 集合定义（单行）",
       "CLASS MyClass ... ENDCLASS                // 类定义",
       "PUBLIC/PRIVATE 成员                      // 访问控制",
       "object <- NEW MyClass(args)               // 创建对象",
@@ -109,12 +109,17 @@
       { "keyword": "DEFINE/SET", "diff": "集合定义" },
       { "keyword": ". (点号)", "diff": "记录字段访问，如 `rec.field`" },
       { "keyword": "^ (脱字符)", "diff": "指针解引用，如 `ptr^` 或 `^var`" },
-      { "keyword": "ELSEIF", "diff": "多分支 IF 条件" },
-      { "keyword": "ENDFOR", "diff": "A-Level 可使用 ENDFOR 结束 FOR 循环" },
       { "keyword": "APPEND", "diff": "追加写文件模式" },
       { "keyword": "RANDOM/SEEK/GETRECORD/PUTRECORD", "diff": "随机访问记录文件" },
       { "keyword": "CLASS", "diff": "面向对象类定义" },
       { "keyword": "NEW/SUPER/INHERITS", "diff": "对象创建、父类调用与继承" }
+    ],
+    "extraFileOperations": [
+      "OPENFILE filename FOR APPEND",
+      "OPENFILE filename FOR RANDOM",
+      "SEEK filename, position",
+      "GETRECORD filename, recordVariable",
+      "PUTRECORD filename, recordVariable"
     ]
   }
 }

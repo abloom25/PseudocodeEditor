@@ -128,10 +128,13 @@ Differences include:
 
 - Constants use `CONSTANT name = value`
 - `WHILE` loops do not require `DO`
-- Procedure calls require `CALL`
+- Procedure calls require `CALL ProcedureName(...)`
 - `CASE` supports range syntax such as `value1 TO value2`
-- A Level built-ins include `MID`, `LEFT`, `RIGHT`, `RAND`, `INT`, `NUM_TO_STRING`, and `STRING_TO_NUM`
-- Additional runtime checks, such as reporting missing function returns
+- A Level built-ins are `LENGTH`, `LCASE`, `UCASE`, `MID`, `RIGHT`, `RAND`, `INT`, and `EOF`
+- Integer division and remainder use infix operators: `a DIV b` and `a MOD b`
+- `LCASE` and `UCASE` accept and return `CHAR`; `INT` truncates toward zero
+- Enum, pointer, and set definitions are single-line forms; only record types use `ENDTYPE`
+- Strict syntax and type checks reject non-syllabus aliases, legacy built-ins, invalid file modes, and missing or mismatched function returns
 
 ## Editor Experience
 

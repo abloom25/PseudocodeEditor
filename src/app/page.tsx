@@ -48,13 +48,7 @@ export default function PseudocodePage() {
   const [newFileName, setNewFileName] = useState('');
   const newFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [syllabus, setSyllabusState] = useState<Syllabus>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('pseudocode-ide-syllabus');
-      if (saved === 'igcse-0478' || saved === 'alevel-9618') return saved;
-    }
-    return 'igcse-0478';
-  });
+  const [syllabus, setSyllabusState] = useState<Syllabus>('igcse-0478');
   const [showSyllabusDialog, setShowSyllabusDialog] = useState(false);
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [bugDescription, setBugDescription] = useState('');
@@ -64,11 +58,15 @@ export default function PseudocodePage() {
     localStorage.setItem('pseudocode-ide-syllabus', value);
   }, []);
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    try {
       const saved = localStorage.getItem('pseudocode-ide-syllabus');
-      if (!saved) {
+      if (saved === 'igcse-0478' || saved === 'alevel-9618') {
+        setSyllabusState(saved);
+      } else {
         setShowSyllabusDialog(true);
       }
+    } catch {
+      setShowSyllabusDialog(true);
     }
   }, []);
   useEffect(() => {
@@ -350,7 +348,7 @@ export default function PseudocodePage() {
   const handleEditorMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    registerPseudocodeLanguage(monaco);
+    registerPseudocodeLanguage(monaco, syllabus);
     registerPseudocodeThemes(monaco);
     // 注册自动补全和 Hover 提示
     if (providersRef.current) {
@@ -362,6 +360,7 @@ export default function PseudocodePage() {
 
   useEffect(() => {
     if (!monacoRef.current) return;
+    registerPseudocodeLanguage(monacoRef.current, syllabus);
     // 先释放旧的 provider
     if (providersRef.current) {
       providersRef.current.dispose();
@@ -1074,14 +1073,18 @@ export default function PseudocodePage() {
                     <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Built-in Functions</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>LENGTH(string)</code>
-                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>LCASE(string)</code>
-                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>UCASE(string)</code>
-                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>ROUND(number, places)</code>
-                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>DIV(a, b)</code>
-                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>MOD(a, b)</code>
+                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>
+                        {syllabus === 'alevel-9618' ? 'LCASE(character)' : 'LCASE(string)'}
+                      </code>
+                      <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>
+                        {syllabus === 'alevel-9618' ? 'UCASE(character)' : 'UCASE(string)'}
+                      </code>
                       {syllabus === 'igcse-0478' ? (
                         <>
                           <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>SUBSTRING(string, start, length)</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>ROUND(number, places)</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>DIV(a, b)</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>MOD(a, b)</code>
                           <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>RANDOM()</code>
                         </>
                       ) : (
@@ -1090,6 +1093,8 @@ export default function PseudocodePage() {
                           <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>RIGHT(string, length)</code>
                           <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>RAND(x)</code>
                           <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>INT(x)</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>a DIV b</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>a MOD b</code>
                         </>
                       )}
                     </div>
@@ -1137,6 +1142,15 @@ export default function PseudocodePage() {
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>WRITEFILE filename, value</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>CLOSEFILE filename</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>EOF(filename) → BOOLEAN</code>
+                      {syllabus === 'alevel-9618' && (
+                        <>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>OPENFILE filename FOR APPEND</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>OPENFILE filename FOR RANDOM</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>SEEK filename, position</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>GETRECORD filename, recordVariable</code>
+                          <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>PUTRECORD filename, recordVariable</code>
+                        </>
+                      )}
                     </div>
                   </div>
                   <Separator className={styles.separatorBg} />
@@ -1176,7 +1190,7 @@ export default function PseudocodePage() {
                             <span className="font-semibold text-amber-400">MID()</span> replaces SUBSTRING(), <span className="font-semibold text-amber-400">RIGHT()</span> extracts right characters
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">RAND(x)</span> returns 0 to x, <span className="font-semibold text-amber-400">INT(x)</span> floors to integer
+                            <span className="font-semibold text-amber-400">RAND(x)</span> returns 0 to x, <span className="font-semibold text-amber-400">INT(x)</span> truncates toward zero
                           </div>
                         </div>
                       </div>

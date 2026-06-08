@@ -1,12 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import { ThemeProvider } from 'next-themes';
+import { PWARegister } from '@/components/PWARegister';
 import './globals.css';
 
 const siteUrl = 'https://pseudocode.site';
 const siteName = 'Pseudocode Editor';
 const siteDescription =
   'Write, run, and debug Cambridge IGCSE 0478 and A Level 9618 pseudocode in a browser editor with syntax highlighting, autocomplete, trace tables, and virtual file simulation.';
+
+export const viewport: Viewport = {
+  themeColor: '#020617',
+  colorScheme: 'dark light',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -16,6 +22,7 @@ export const metadata: Metadata = {
   },
   description: siteDescription,
   applicationName: siteName,
+  manifest: '/manifest.webmanifest',
   keywords: [
     'Pseudocode Editor',
     'Cambridge pseudocode',
@@ -49,8 +56,23 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: '/icon.png',
-    apple: '/icon.png',
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/pwa-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      {
+        url: '/icons/apple-touch-icon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: siteName,
   },
   openGraph: {
     title: 'Pseudocode Editor for Cambridge IGCSE 0478 and A Level 9618',
@@ -138,6 +160,7 @@ export default function RootLayout({
           />
           {isDev && <Inspector />}
           {children}
+          <PWARegister />
         </ThemeProvider>
       </body>
     </html>

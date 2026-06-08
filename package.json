@@ -8,6 +8,7 @@
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "start": "next start",
+    "test:pseudocode": "tsx --test tests/pseudocode/*.test.ts",
     "ts-check": "tsc -p tsconfig.json"
   },
   "dependencies": {

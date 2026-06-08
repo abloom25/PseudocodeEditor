@@ -1,9 +1,10 @@
 import type { languages as MonacoLanguages } from 'monaco-editor';
+import type { Syllabus } from '../types';
 import { syntaxHighlighting } from '../config';
 
 type MonacoType = unknown;
 
-export function registerPseudocodeLanguage(monaco: MonacoType) {
+export function registerPseudocodeLanguage(monaco: MonacoType, syllabus: Syllabus) {
   const m = monaco as {
     languages: {
       getLanguages: () => MonacoLanguages.ILanguageExtensionPoint[];
@@ -18,7 +19,14 @@ export function registerPseudocodeLanguage(monaco: MonacoType) {
     m.languages.register({ id: 'pseudocode' });
   }
 
-  const { keywords, typeKeywords, builtins } = syntaxHighlighting;
+  const oppositeSyllabus = syllabus === 'igcse-0478' ? 'alevel-specific' : 'igcse-specific';
+  const excludedKeywords = new Set(syntaxHighlighting[oppositeSyllabus].keywords);
+  const excludedBuiltins = new Set(syntaxHighlighting[oppositeSyllabus].builtins);
+  const keywords = syntaxHighlighting.keywords.filter(keyword => !excludedKeywords.has(keyword));
+  const typeKeywords = syntaxHighlighting.typeKeywords.filter(
+    type => syllabus === 'alevel-9618' || type !== 'DATE',
+  );
+  const builtins = syntaxHighlighting.builtins.filter(builtin => !excludedBuiltins.has(builtin));
 
   m.languages.setMonarchTokensProvider('pseudocode', {
     keywords,
@@ -66,20 +74,20 @@ export function registerPseudocodeLanguage(monaco: MonacoType) {
       { open: '"', close: '"' }, { open: "'", close: "'" }
     ],
     indentationRules: {
-      increaseIndentPattern: /^\s*(IF|THEN|ELSE|ELSEIF|FOR|WHILE|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE|TYPE|DEFINE|CLASS|PUBLIC PROCEDURE|PRIVATE PROCEDURE|PUBLIC FUNCTION|PRIVATE FUNCTION)\b/i,
-      decreaseIndentPattern: /^\s*(ENDIF|ELSE|ELSEIF|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|ENDFOR|ENDTYPE|ENDCLASS|OTHERWISE)\b/i,
+      increaseIndentPattern: /^\s*(IF|THEN|ELSE|FOR|WHILE|REPEAT|PROCEDURE|FUNCTION|CASE OF|OTHERWISE|TYPE|CLASS|PUBLIC PROCEDURE|PRIVATE PROCEDURE|PUBLIC FUNCTION|PRIVATE FUNCTION)\b/i,
+      decreaseIndentPattern: /^\s*(ENDIF|ELSE|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|ENDTYPE|ENDCLASS|OTHERWISE)\b/i,
     },
     onEnterRules: [
       {
-        beforeText: /^\s*(IF|THEN|ELSE|ELSEIF|FOR\s.*\bTO\b|WHILE\s.*\b(DO)?\b|REPEAT|PROCEDURE|FUNCTION|PUBLIC\s+PROCEDURE|PRIVATE\s+PROCEDURE|PUBLIC\s+FUNCTION|PRIVATE\s+FUNCTION|CASE OF|OTHERWISE|TYPE|CLASS)\s*$/i,
+        beforeText: /^\s*(IF|THEN|ELSE|FOR\s.*\bTO\b|WHILE(?:\s+.*)?|REPEAT|PROCEDURE(?:\s+.*)?|FUNCTION(?:\s+.*)?|PUBLIC\s+PROCEDURE(?:\s+.*)?|PRIVATE\s+PROCEDURE(?:\s+.*)?|PUBLIC\s+FUNCTION(?:\s+.*)?|PRIVATE\s+FUNCTION(?:\s+.*)?|CASE OF(?:\s+.*)?|OTHERWISE|TYPE(?:\s+.*)?|CLASS(?:\s+.*)?)\s*$/i,
         action: { indentAction: (monaco as { languages: { IndentAction: { Indent: number } } }).languages.IndentAction.Indent },
       },
       {
-        beforeText: /^\s*(ENDIF|ENDWHILE|UNTIL|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT|ENDFOR|ENDTYPE|ENDCLASS|OTHERWISE)\s*$/i,
+        beforeText: /^\s*(ENDIF|ENDWHILE|UNTIL(?:\s+.*)?|ENDPROCEDURE|ENDFUNCTION|ENDCASE|NEXT(?:\s+.*)?|ENDTYPE|ENDCLASS|OTHERWISE)\s*$/i,
         action: { indentAction: (monaco as { languages: { IndentAction: { Outdent: number } } }).languages.IndentAction.Outdent },
       },
       {
-        beforeText: /^\s*(ELSE|ELSEIF)\s*$/i,
+        beforeText: /^\s*ELSE\s*$/i,
         action: { indentAction: (monaco as { languages: { IndentAction: { Outdent: number } } }).languages.IndentAction.Outdent, appendText: '  ' },
       },
     ],

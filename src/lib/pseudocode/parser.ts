@@ -1139,10 +1139,14 @@ export class Interpreter {
   
   reset(): void {
     this.variables.clear(); this.constants.clear(); this.arrays.clear();
+    this.procedures.clear(); this.functions.clear();
     this.variableTypes.clear();
     this.output = []; this.currentIteration = 0; this.callDepth = 0; this.aborted = false;
     this.filePositions.clear(); this.openFiles.clear();
     this.traceTable = []; this.lastOutputLine = 0;
+    this.traceLog = [];
+    this.inputCallback = undefined;
+    this.onOutput = undefined;
   }
 
   private recordTrace(line: number): void {

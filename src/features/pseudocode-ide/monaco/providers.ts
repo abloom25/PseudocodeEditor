@@ -20,6 +20,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
   const common = completions.common;
   const syllabusConfig = completions[syllabus] as {
     extraKeywords?: string[];
+    extraTypes?: string[];
     extraFunctions?: string[];
     extraSnippets?: Record<string, { body: string[]; description: string }>;
   };
@@ -29,6 +30,20 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
   const commonKeywordDocs = (hoverDocs.common as { keywords: Record<string, string> }).keywords;
   const commonTypeDocs = (hoverDocs.common as { types: Record<string, string> }).types;
   const commonBuiltinDocs = (hoverDocs.common as { builtins: Record<string, string> }).builtins;
+  const effectiveKeywords = new Set([
+    ...common.keywords,
+    ...(syllabusConfig.extraKeywords || []),
+    ...(syllabus === 'igcse-0478' ? ['DO'] : []),
+  ]);
+  const effectiveTypes = new Set([
+    ...common.typeKeywords,
+    ...(syllabusConfig.extraTypes || []),
+  ]);
+  const effectiveFunctions = new Set([
+    ...common.functions,
+    ...(syllabusConfig.extraFunctions || []),
+  ]);
+  const alevelOperators = new Set(['DIV', 'MOD']);
 
   disposables.push(m.languages.registerCompletionItemProvider('pseudocode', {
     provideCompletionItems: (model: { getWordUntilPosition: (pos: unknown) => { startColumn: number; endColumn: number }; getValue: () => string }, position: { lineNumber: number }) => {
@@ -44,24 +59,15 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       const declaredSymbols: DeclaredSymbols = extractDeclaredSymbols(code);
       const suggestions: MonacoLanguages.CompletionItem[] = [];
 
-      const allKeywords = [
-        ...common.keywords,
-        ...(syllabusConfig.extraKeywords || []),
-        ...(syllabus === 'igcse-0478' ? ['DO'] : []),
-      ];
-      for (const kw of allKeywords) {
+      for (const kw of effectiveKeywords) {
         suggestions.push({ label: kw, kind: m.languages.CompletionItemKind.Keyword, insertText: kw, range });
       }
 
-      for (const dt of common.typeKeywords) {
+      for (const dt of effectiveTypes) {
         suggestions.push({ label: dt, kind: m.languages.CompletionItemKind.TypeParameter, insertText: dt, range });
       }
 
-      const allFunctions = [
-        ...common.functions,
-        ...(syllabusConfig.extraFunctions || []),
-      ];
-      for (const fn of allFunctions) {
+      for (const fn of effectiveFunctions) {
         suggestions.push({
           label: fn,
           kind: m.languages.CompletionItemKind.Function,
@@ -103,10 +109,12 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
         });
       }
       for (const p of declaredSymbols.procedures) {
+        const args = p.params.map((_, i) => `\${${i + 1}:${p.params[i]}}`).join(', ');
+        const call = `${p.name}(${args})`;
         suggestions.push({
           label: p.name,
           kind: m.languages.CompletionItemKind.Method,
-          insertText: p.params.length > 0 ? `${p.name}(${p.params.map((_, i) => `\${${i + 1}:${p.params[i]}}`).join(', ')})` : `${p.name}`,
+          insertText: syllabus === 'alevel-9618' ? `CALL ${call}` : call,
           insertTextRules: m.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           detail: 'PROCEDURE',
           documentation: `**Signature**: \`${p.name}(${p.params.join(', ')})\``,
@@ -230,19 +238,24 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       }
 
       let description: string | undefined;
+      const isAllowedHover =
+        effectiveKeywords.has(word.word) ||
+        effectiveTypes.has(word.word) ||
+        effectiveFunctions.has(word.word) ||
+        (syllabus === 'alevel-9618' && alevelOperators.has(word.word));
+      if (!isAllowedHover) return null;
 
-      if (commonKeywordDocs[word.word]) description = commonKeywordDocs[word.word];
-      else if (commonTypeDocs[word.word]) description = commonTypeDocs[word.word];
-      else if (commonBuiltinDocs[word.word]) description = commonBuiltinDocs[word.word];
-
-      if (!description && syllabus === 'igcse-0478' && igcseDoc) {
+      if (syllabus === 'igcse-0478' && igcseDoc) {
         if ((igcseDoc.keywords as Record<string, string>)?.[word.word]) description = (igcseDoc.keywords as Record<string, string>)[word.word];
         else if ((igcseDoc.builtins as Record<string, string>)?.[word.word]) description = (igcseDoc.builtins as Record<string, string>)[word.word];
       }
-      if (!description && syllabus === 'alevel-9618' && alevelDoc) {
+      if (syllabus === 'alevel-9618' && alevelDoc) {
         if ((alevelDoc.keywords as Record<string, string>)?.[word.word]) description = (alevelDoc.keywords as Record<string, string>)[word.word];
         else if ((alevelDoc.builtins as Record<string, string>)?.[word.word]) description = (alevelDoc.builtins as Record<string, string>)[word.word];
       }
+      if (!description && commonKeywordDocs[word.word]) description = commonKeywordDocs[word.word];
+      else if (!description && commonTypeDocs[word.word]) description = commonTypeDocs[word.word];
+      else if (!description && commonBuiltinDocs[word.word]) description = commonBuiltinDocs[word.word];
 
       if (description) {
         let finalDesc = description;

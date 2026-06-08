@@ -20,9 +20,11 @@ export function ReferencePanel({ syllabus, styles }: ReferencePanelProps) {
   };
 
   const syllabusData = reference[syllabus] as {
+    extraDataTypes?: string[];
     extraFunctions?: { name: string; desc: string }[];
     extraControlStructures?: string[];
     extraDeclarations?: string[];
+    extraFileOperations?: string[];
     extraFunctionsProcedures?: string[];
     differences?: { keyword: string; diff: string }[];
   };
@@ -32,7 +34,7 @@ export function ReferencePanel({ syllabus, styles }: ReferencePanelProps) {
       <div>
         <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Data Types</h3>
         <div className="grid grid-cols-2 gap-1">
-          {common.dataTypes.map(dt => (
+          {[...common.dataTypes, ...(syllabusData.extraDataTypes || [])].map(dt => (
             <code key={dt} className={`${styles.refCodeBg} px-2 py-1 rounded text-blue-500`}>{dt}</code>
           ))}
         </div>
@@ -76,7 +78,7 @@ export function ReferencePanel({ syllabus, styles }: ReferencePanelProps) {
       <div>
         <h3 className={`font-semibold mb-2 ${styles.headerText}`}>File Operations</h3>
         <div className="space-y-1 font-mono text-xs">
-          {common.fileOperations.map(op => (
+          {[...common.fileOperations, ...(syllabusData.extraFileOperations || [])].map(op => (
             <code key={op} className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>{op}</code>
           ))}
         </div>
