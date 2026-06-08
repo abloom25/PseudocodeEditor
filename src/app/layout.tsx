@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Inspector } from 'react-dev-inspector';
 import { ThemeProvider } from 'next-themes';
 import { PWARegister } from '@/components/PWARegister';
@@ -7,7 +8,8 @@ import './globals.css';
 const siteUrl = 'https://pseudocode.site';
 const siteName = 'Pseudocode Editor';
 const siteDescription =
-  'Write, run, and debug Cambridge IGCSE 0478 and A Level 9618 pseudocode in a browser editor with syntax highlighting, autocomplete, trace tables, and virtual file simulation.';
+  'Write, run, and debug Cambridge IGCSE 0478 and A Level 9618 pseudocode online with syntax checking, trace tables, arrays, records, and file handling.';
+const umamiWebsiteId = '78d8bb40-ef8b-4af6-8ef9-06a34cb2d5a6';
 
 export const viewport: Viewport = {
   themeColor: '#020617',
@@ -17,7 +19,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Pseudocode Editor for Cambridge IGCSE 0478 and A Level 9618',
+    default: 'Cambridge Pseudocode Editor | IGCSE 0478 & A Level 9618',
     template: '%s | Pseudocode Editor',
   },
   description: siteDescription,
@@ -75,26 +77,19 @@ export const metadata: Metadata = {
     title: siteName,
   },
   openGraph: {
-    title: 'Pseudocode Editor for Cambridge IGCSE 0478 and A Level 9618',
+    title: 'Cambridge Pseudocode Editor | IGCSE 0478 & A Level 9618',
     description: siteDescription,
     url: '/',
     siteName: 'Pseudocode Editor',
     locale: 'en_US',
     type: 'website',
-    images: [
-      {
-        url: '/pseudocode-editor-icon.png',
-        width: 1254,
-        height: 1254,
-        alt: 'Pseudocode Editor icon',
-      },
-    ],
+    images: ['/opengraph-image'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pseudocode Editor for Cambridge IGCSE 0478 and A Level 9618',
+    title: 'Cambridge Pseudocode Editor | IGCSE 0478 & A Level 9618',
     description: siteDescription,
-    images: ['/pseudocode-editor-icon.png'],
+    images: ['/opengraph-image'],
   },
   robots: {
     index: true,
@@ -111,29 +106,43 @@ export const metadata: Metadata = {
 
 const structuredData = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: siteName,
-  applicationCategory: 'EducationalApplication',
-  operatingSystem: 'Web',
-  url: siteUrl,
-  description: siteDescription,
-  image: `${siteUrl}/pseudocode-editor-icon.png`,
-  author: {
-    '@type': 'Person',
-    name: 'abloom25',
-  },
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  featureList: [
-    'Cambridge IGCSE 0478 pseudocode editing and execution',
-    'Cambridge A Level 9618 pseudocode editing and execution',
-    'Syntax highlighting and autocomplete',
-    'Trace table generation',
-    'Virtual file simulation',
-    'AST inspection',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      url: siteUrl,
+      name: siteName,
+      description: siteDescription,
+      inLanguage: 'en',
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': `${siteUrl}/#application`,
+      name: siteName,
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Any',
+      browserRequirements: 'Requires a modern web browser with JavaScript enabled',
+      url: siteUrl,
+      description: siteDescription,
+      image: `${siteUrl}/pseudocode-editor-icon.png`,
+      author: {
+        '@type': 'Person',
+        name: 'abloom25',
+      },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      featureList: [
+        'Cambridge IGCSE 0478 pseudocode editing and execution',
+        'Cambridge A Level 9618 pseudocode editing and execution',
+        'Syntax highlighting and autocomplete',
+        'Trace table generation',
+        'Virtual file simulation',
+        'AST inspection',
+      ],
+    },
   ],
 };
 
@@ -146,7 +155,10 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`antialiased h-screen overflow-hidden`}>
+      <body
+        suppressHydrationWarning
+        className="antialiased h-screen overflow-hidden"
+      >
         <ThemeProvider
           attribute="data-theme"
           defaultTheme="nightlight"
@@ -161,6 +173,14 @@ export default function RootLayout({
           {isDev && <Inspector />}
           {children}
           <PWARegister />
+          <Script
+            src="https://cloud.umami.is/script.js"
+            data-website-id={umamiWebsiteId}
+            data-domains="pseudocode.site"
+            data-do-not-track="true"
+            data-exclude-search="true"
+            strategy="afterInteractive"
+          />
         </ThemeProvider>
       </body>
     </html>

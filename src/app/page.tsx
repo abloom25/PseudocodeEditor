@@ -689,7 +689,6 @@ export default function PseudocodePage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
         {/* 示例选择器 */}
         {/* 文件菜单 */}
         <div className="ml-1 md:ml-2">
