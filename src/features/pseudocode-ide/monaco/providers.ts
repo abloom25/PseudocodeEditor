@@ -1,11 +1,14 @@
 import type { languages as MonacoLanguages } from 'monaco-editor';
+import type { Locale } from '@/lib/i18n';
+import { monacoLanguagePacks } from '@/locales/monaco';
 import type { Syllabus, DeclaredSymbols } from '../types';
 import { completions, hoverDocs } from '../config';
 import { extractDeclaredSymbols } from '../utils/declared-symbols';
 
 type MonacoType = unknown;
 
-export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllabus) {
+export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllabus, locale: Locale = 'en') {
+  const text = monacoLanguagePacks[locale];
   const m = monaco as {
     languages: {
       registerCompletionItemProvider: (selector: string, provider: object) => { dispose: () => void };
@@ -82,8 +85,8 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           label: v.name,
           kind: m.languages.CompletionItemKind.Variable,
           insertText: v.name,
-          detail: `${v.type} - Variable`,
-          documentation: `Declared as \`${v.type}\` on line ${v.line}`,
+          detail: text.variableDetail(v.type),
+          documentation: text.declaredAs(v.type, v.line),
           range,
         });
       }
@@ -92,8 +95,8 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           label: c.name,
           kind: m.languages.CompletionItemKind.Constant,
           insertText: c.name,
-          detail: `${c.type} - Constant`,
-          documentation: `Value: \`${c.value}\``,
+          detail: text.constantDetail(c.type),
+          documentation: text.value(c.value),
           range,
         });
       }
@@ -103,8 +106,8 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           kind: m.languages.CompletionItemKind.Function,
           insertText: f.params.length > 0 ? `${f.name}(${f.params.map((_, i) => `\${${i + 1}:${f.params[i]}}`).join(', ')})` : `${f.name}()`,
           insertTextRules: m.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: `FUNCTION - Returns ${f.returnType || 'unknown'}`,
-          documentation: `**Signature**: \`${f.name}(${f.params.join(', ')}) RETURNS ${f.returnType || '?'}\``,
+          detail: text.functionDetail(f.returnType),
+          documentation: text.signature(`${f.name}(${f.params.join(', ')}) RETURNS ${f.returnType || '?'}`),
           range,
         });
       }
@@ -116,8 +119,8 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           kind: m.languages.CompletionItemKind.Method,
           insertText: syllabus === 'alevel-9618' ? `CALL ${call}` : call,
           insertTextRules: m.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: 'PROCEDURE',
-          documentation: `**Signature**: \`${p.name}(${p.params.join(', ')})\``,
+          detail: text.procedureDetail,
+          documentation: text.signature(`${p.name}(${p.params.join(', ')})`),
           range,
         });
       }
@@ -127,7 +130,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           kind: m.languages.CompletionItemKind.Variable,
           insertText: a.name,
           detail: `ARRAY${a.dimensions} - ${a.elementType}`,
-          documentation: `Declared as \`${a.dimensions} OF ${a.elementType}\` on line ${a.line}`,
+          documentation: text.arrayDeclaredAs(a.dimensions, a.elementType, a.line),
           range,
         });
       }
@@ -136,8 +139,8 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           label: t.name,
           kind: m.languages.CompletionItemKind.TypeParameter,
           insertText: t.name,
-          detail: `TYPE (${t.kind})`,
-          documentation: `User-defined type \`${t.name}\` (${t.kind}) declared on line ${t.line}`,
+          detail: text.typeDetail(t.kind),
+          documentation: text.typeDeclared(t.name, t.kind, t.line),
           range,
         });
       }
@@ -172,7 +175,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
           kind: m.languages.CompletionItemKind.Snippet,
           insertText: snippet.body.join('\n'),
           insertTextRules: m.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          documentation: snippet.description,
+          documentation: text.snippet(name, snippet.description),
           range,
         });
       }
@@ -193,7 +196,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (varMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### 📦 Variable: \`${varMatch.name}\`\n\n**Type**: \`${varMatch.type}\`\n**Declared on line**: ${varMatch.line}\n\nDeclared with \`DECLARE ${varMatch.name} : ${varMatch.type}\`` }],
+          contents: [{ value: text.variableHover(varMatch.name, varMatch.type, varMatch.line) }],
         };
       }
 
@@ -201,7 +204,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (constMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### 🔒 Constant: \`${constMatch.name}\`\n\n**Type**: \`${constMatch.type}\`\n**Value**: \`${constMatch.value}\`\n\nDeclared with \`CONSTANT ${constMatch.name} <- ${constMatch.value}\`` }],
+          contents: [{ value: text.constantHover(constMatch.name, constMatch.type, constMatch.value) }],
         };
       }
 
@@ -209,7 +212,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (funcMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### ƒ Function: \`${funcMatch.name}\`\n\n**Signature**: \`${funcMatch.name}(${funcMatch.params.join(', ')})\`\n**Returns**: \`${funcMatch.returnType || 'unknown'}\`\n**Declared on line**: ${funcMatch.line}` }],
+          contents: [{ value: text.functionHover(funcMatch.name, funcMatch.params, funcMatch.returnType, funcMatch.line) }],
         };
       }
 
@@ -217,7 +220,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (procMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### ◯ Procedure: \`${procMatch.name}\`\n\n**Signature**: \`${procMatch.name}(${procMatch.params.join(', ')})\`\n**Declared on line**: ${procMatch.line}` }],
+          contents: [{ value: text.procedureHover(procMatch.name, procMatch.params, procMatch.line) }],
         };
       }
 
@@ -225,7 +228,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (arrMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### 📋 Array: \`${arrMatch.name}\`\n\n**Dimensions**: \`${arrMatch.dimensions}\`\n**Element Type**: \`${arrMatch.elementType}\`\n**Declared on line**: ${arrMatch.line}\n\nDeclared with \`DECLARE ${arrMatch.name} : ARRAY${arrMatch.dimensions} OF ${arrMatch.elementType}\`` }],
+          contents: [{ value: text.arrayHover(arrMatch.name, arrMatch.dimensions, arrMatch.elementType, arrMatch.line) }],
         };
       }
 
@@ -233,7 +236,7 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       if (typeMatch) {
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: `### 🏷️ User-defined Type: \`${typeMatch.name}\`\n\n**Kind**: \`${typeMatch.kind}\`\n**Declared on line**: ${typeMatch.line}` }],
+          contents: [{ value: text.typeHover(typeMatch.name, typeMatch.kind, typeMatch.line) }],
         };
       }
 
@@ -258,20 +261,14 @@ export function registerPseudocodeProviders(monaco: MonacoType, syllabus: Syllab
       else if (!description && commonBuiltinDocs[word.word]) description = commonBuiltinDocs[word.word];
 
       if (description) {
-        let finalDesc = description;
-        if (description.includes('CONSTANT name') && !description.includes('CONSTANT name =')) {
-          const constSyntax = syllabus === 'igcse-0478' ? '<-' : '=';
-          finalDesc = description.replace('CONSTANT name <-', `CONSTANT name ${constSyntax}`).replace('CONSTANT name <-', `CONSTANT name ${constSyntax}`);
-        }
-        if (description.includes('WHILE condition') && !description.includes('condition DO') && !description.includes('condition\\n')) {
-          finalDesc = syllabus === 'igcse-0478'
-            ? description.replace('WHILE condition', 'WHILE condition DO')
-            : description.replace('WHILE condition DO', 'WHILE condition').replace('condition DO', 'condition');
-        }
-
+        const category = effectiveTypes.has(word.word)
+          ? 'data type'
+          : effectiveFunctions.has(word.word) || alevelOperators.has(word.word)
+            ? 'built-in operation'
+            : 'keyword';
         return {
           range: { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn },
-          contents: [{ value: finalDesc }],
+          contents: [{ value: text.syllabusHover(word.word, syllabus, category, description) }],
         };
       }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { GuideSection, GuideShell } from '@/components/GuideShell';
+import { GuideSection, GuideShell, GuideText } from '@/components/GuideShell';
+import type { MessageKey } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'Cambridge Pseudocode Guides',
@@ -30,28 +31,26 @@ export const metadata: Metadata = {
 const guides = [
   {
     href: '/guides/igcse-0478/',
-    title: 'IGCSE Computer Science 0478',
-    description:
-      'Core declarations, arrays, selection, iteration, procedures, functions, and text file handling.',
+    titleKey: 'guides.index.igcse.title',
+    descriptionKey: 'guides.index.igcse.description',
   },
   {
     href: '/guides/alevel-9618/',
-    title: 'A Level Computer Science 9618',
-    description:
-      'Strict A-Level syntax including records, pointers, sets, classes, random files, and syllabus-specific operators.',
+    titleKey: 'guides.index.alevel.title',
+    descriptionKey: 'guides.index.alevel.description',
   },
-];
+] satisfies Array<{ href: string; titleKey: MessageKey; descriptionKey: MessageKey }>;
 
 export default function GuidesPage() {
   return (
     <GuideShell
-      eyebrow="Cambridge Computer Science"
-      title="Pseudocode syntax guides and runnable examples"
-      description="Choose the guide for your syllabus. Each page explains the syntax accepted by the editor and includes examples you can adapt for exam practice."
+      eyebrowKey="guides.index.eyebrow"
+      titleKey="guides.index.title"
+      descriptionKey="guides.index.description"
       showBackLink={false}
       path="/guides/"
     >
-      <GuideSection title="Choose your syllabus">
+      <GuideSection titleKey="guides.index.choose">
         <div className="grid gap-5 md:grid-cols-2">
           {guides.map((guide) => (
             <Link
@@ -62,27 +61,27 @@ export default function GuidesPage() {
               <div className="mb-4 inline-flex rounded-md bg-[#111A33] px-2 py-1 font-mono text-xs text-[#FFD08A]">
                 {guide.href.includes('igcse') ? '0478' : '9618'}
               </div>
-              <h3 className="text-xl font-semibold text-[#F4F7FF]">{guide.title}</h3>
-              <p className="mt-3 text-[#8FA3CC]">{guide.description}</p>
+              <h3 className="text-xl font-semibold text-[#F4F7FF]">
+                <GuideText messageKey={guide.titleKey} />
+              </h3>
+              <p className="mt-3 text-[#8FA3CC]">
+                <GuideText messageKey={guide.descriptionKey} />
+              </p>
               <span className="mt-5 inline-block font-medium text-[#8ED0FF] group-hover:text-white">
-                Read guide →
+                <GuideText messageKey="guides.index.read" />
               </span>
             </Link>
           ))}
         </div>
       </GuideSection>
 
-      <GuideSection title="Use the examples in the editor">
-        <p>
-          Open the editor, select the matching syllabus, and paste an example.
-          The syntax checker, execution output, trace table, array viewer, and
-          virtual file system help you inspect how the algorithm behaves.
-        </p>
+      <GuideSection titleKey="guides.index.useExamples">
+        <p><GuideText messageKey="guides.index.useExamplesText" /></p>
         <Link
           href="/"
           className="inline-flex rounded-md bg-[#2B4D91] px-5 py-2.5 font-semibold text-white transition hover:bg-[#3B67BD]"
         >
-          Open Pseudocode Editor
+          <GuideText messageKey="guides.index.openEditor" />
         </Link>
       </GuideSection>
     </GuideShell>

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { FileCode, Plus, Upload, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/components/LanguageProvider';
 import type { UIThemeColors } from '../types';
 
 interface FilesPanelProps {
@@ -28,6 +29,7 @@ export function FilesPanel({
   onUpdateFile,
   onUploadFiles,
 }: FilesPanelProps) {
+  const { t } = useLanguage();
   const [isAddingFile, setIsAddingFile] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const newFileInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +51,7 @@ export function FilesPanel({
           <div className="flex items-center justify-between">
             <h3 className={`text-sm font-semibold ${styles.headerText}`}>
               <FileCode className="w-4 h-4 inline mr-1" />
-              Virtual Files
+              {t('virtualFiles')}
             </h3>
             <div className="flex items-center gap-1">
               <Button
@@ -57,7 +59,7 @@ export function FilesPanel({
                 size="sm"
                 onClick={() => { setIsAddingFile(true); setNewFileName(''); }}
                 className={`h-6 px-2 text-xs ${styles.buttonText} ${styles.buttonHover}`}
-                title="Add file"
+                title={t('addFile')}
               >
                 <Plus className="w-3 h-3" />
               </Button>
@@ -66,7 +68,7 @@ export function FilesPanel({
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 className={`h-6 px-2 text-xs ${styles.buttonText} ${styles.buttonHover}`}
-                title="Upload file"
+                title={t('uploadFile')}
               >
                 <Upload className="w-3 h-3" />
               </Button>
@@ -84,7 +86,7 @@ export function FilesPanel({
                   size="sm"
                   onClick={onClearAll}
                   className={`h-6 px-2 text-xs ${styles.buttonText} ${styles.buttonHover}`}
-                  title="Clear all files"
+                  title={t('clearFiles')}
                 >
                   <Trash2 className="w-3 h-3" />
                 </Button>
@@ -104,12 +106,12 @@ export function FilesPanel({
                       : `${styles.buttonText} ${styles.buttonHover}`
                   }`}
                 >
-                  📄 {filename}
+                  <FileCode className="mr-1 inline h-3 w-3" aria-hidden="true" /> {filename}
                 </button>
                 <button
                   onClick={() => onDeleteFile(filename)}
                   className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity ${styles.buttonText} hover:text-red-400`}
-                  title="Delete file"
+                  title={t('deleteFile')}
                 >
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -119,7 +121,7 @@ export function FilesPanel({
             ))}
             {isAddingFile && (
               <div className="flex items-center gap-1">
-                <span className="text-xs opacity-50">📄</span>
+                <FileCode className="h-3 w-3 opacity-50" aria-hidden="true" />
                 <input
                   ref={newFileInputRef}
                   type="text"
@@ -139,7 +141,7 @@ export function FilesPanel({
           </div>
           {Object.keys(virtualFiles).length === 0 && !isAddingFile && (
             <p className={`text-xs text-center mt-2 ${styles.outputDimText}`}>
-              No files yet. Click + to add.
+              {t('noFiles')}
             </p>
           )}
         </div>
@@ -148,13 +150,13 @@ export function FilesPanel({
       <div className="flex-1 flex flex-col overflow-hidden">
         {!selectedFile ? (
           <div className={`flex-1 flex items-center justify-center ${styles.outputDimText}`}>
-            <p className="text-sm">Select a file to preview</p>
+            <p className="text-sm">{t('selectFile')}</p>
           </div>
         ) : (
           <>
             <div className={`px-4 py-2 border-b shrink-0 flex items-center justify-between ${styles.headerBg} ${styles.outputLineBorder}`}>
               <span className={`text-sm font-semibold ${styles.headerText}`}>
-                📄 {selectedFile}
+                <FileCode className="mr-1 inline h-4 w-4" aria-hidden="true" /> {selectedFile}
               </span>
               <div className="flex items-center gap-1">
                 <Button
@@ -165,7 +167,7 @@ export function FilesPanel({
                     navigator.clipboard.writeText(content);
                   }}
                   className={`${styles.buttonText} ${styles.buttonHover}`}
-                  title="Copy content"
+                  title={t('copyContent')}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -174,7 +176,7 @@ export function FilesPanel({
                   size="sm"
                   onClick={() => onDeleteFile(selectedFile)}
                   className={`${styles.buttonText} hover:text-red-400`}
-                  title="Delete file"
+                  title={t('deleteFile')}
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -191,7 +193,7 @@ export function FilesPanel({
               <textarea
                 className={`flex-1 resize-none bg-transparent outline-none ${styles.headerText} font-mono text-xs pt-4 pb-4 pr-4 leading-[1.625rem] custom-scrollbar`}
                 value={virtualFiles[selectedFile]?.join('\n') || ''}
-                placeholder="Start typing..."
+                placeholder={t('startTyping')}
                 onChange={(e) => {
                   const text = e.target.value;
                   const lines = text ? text.split('\n') : [];

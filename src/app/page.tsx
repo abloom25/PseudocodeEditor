@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
+import { localeNames, supportedLocales } from '@/lib/i18n';
 import { SyntaxHighlighter } from '@/features/pseudocode-ide/components';
 import { getThemeStyles, resolveThemeName } from '@/features/pseudocode-ide/config/theme-styles';
 import { convertArraysData, type ArrayData } from '@/features/pseudocode-ide/utils';
@@ -17,6 +19,10 @@ type MonacoType = any;
 /* eslint-enable */
 import { PseudocodeParser, type TraceEntry } from '@/lib/pseudocode/parser';
 import { ALevelParser } from '@/lib/pseudocode/alevel-parser';
+import {
+  normalizePseudocodeError,
+  type PseudocodeDiagnostic,
+} from '@/lib/pseudocode/diagnostics';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,9 +34,14 @@ import { Textarea } from '@/components/ui/textarea';
 
 
 export default function PseudocodePage() {
+  const { locale, setLocale, t } = useLanguage();
   const [code, setCode] = useState<string>('');
   const [output, setOutput] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [errorDiagnostic, setErrorDiagnostic] = useState<PseudocodeDiagnostic | null>(null);
+  const error = useMemo(
+    () => errorDiagnostic ? friendlyErrorMessage(errorDiagnostic, locale) : null,
+    [errorDiagnostic, locale],
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [parseSuccess, setParseSuccess] = useState(false);
   const [astJson, setAstJson] = useState<string>('');
@@ -122,7 +133,7 @@ export default function PseudocodePage() {
         } else {
           const markers = errors.map(err => ({
             severity: monacoRef.current!.MarkerSeverity.Error,
-            message: friendlyErrorMessage(err.message),
+            message: friendlyErrorMessage(err.message, locale),
             startLineNumber: err.line,
             startColumn: 1,
             endLineNumber: err.line,
@@ -135,7 +146,7 @@ export default function PseudocodePage() {
     return () => {
       if (syntaxCheckTimer.current) clearTimeout(syntaxCheckTimer.current);
     };
-  }, [code]);
+  }, [code, locale, syllabus]);
 
   // Calculate trace table columns from trace data
   const traceColumns = useMemo(() => {
@@ -295,6 +306,7 @@ export default function PseudocodePage() {
         syllabus: syllabusLabel,
         theme: currentTheme,
         layout: desktopLayout,
+        language: locale,
         browser: ua,
         url: typeof window !== 'undefined' ? window.location.href : 'N/A',
       },
@@ -313,7 +325,7 @@ export default function PseudocodePage() {
     }
 
     return JSON.stringify(report, null, 2);
-  }, [syllabus, currentTheme, desktopLayout, output, error, bugDescription]);
+  }, [syllabus, currentTheme, desktopLayout, locale, output, error, bugDescription]);
 
   const copyBugReport = useCallback(async () => {
     const report = generateBugReport();
@@ -354,9 +366,9 @@ export default function PseudocodePage() {
     if (providersRef.current) {
       providersRef.current.dispose();
     }
-    providersRef.current = registerPseudocodeProviders(monaco, syllabus);
+    providersRef.current = registerPseudocodeProviders(monaco, syllabus, locale);
     monaco.editor.setTheme(`pseudocode-${currentTheme}`);
-  }, [currentTheme, syllabus]);
+  }, [currentTheme, locale, syllabus]);
 
   useEffect(() => {
     if (!monacoRef.current) return;
@@ -366,8 +378,8 @@ export default function PseudocodePage() {
       providersRef.current.dispose();
       providersRef.current = null;
     }
-    providersRef.current = registerPseudocodeProviders(monacoRef.current, syllabus);
-  }, [syllabus]);
+    providersRef.current = registerPseudocodeProviders(monacoRef.current, syllabus, locale);
+  }, [locale, syllabus]);
 
   // 运行代码
   const clearEditorMarkers = useCallback(() => {
@@ -379,17 +391,17 @@ export default function PseudocodePage() {
     }
   }, []);
 
-  const showEditorError = useCallback((message: string) => {
+  const showEditorError = useCallback((error: unknown) => {
     if (!monacoRef.current || !editorRef.current) return;
     const model = editorRef.current.getModel();
     if (!model) return;
-    const lineMatch = message.match(/at line (\d+)/);
-    if (lineMatch) {
-      const line = parseInt(lineMatch[1], 10);
+    const diagnostic = normalizePseudocodeError(error).diagnostic;
+    if (diagnostic.line) {
+      const line = diagnostic.line;
       monacoRef.current.editor.setModelMarkers(model, 'pseudocode', [
         {
           severity: monacoRef.current.MarkerSeverity.Error,
-          message: friendlyErrorMessage(message),
+          message: friendlyErrorMessage(diagnostic, locale),
           startLineNumber: line,
           startColumn: 1,
           endLineNumber: line,
@@ -398,11 +410,11 @@ export default function PseudocodePage() {
       ]);
       editorRef.current.revealLineInCenter(line);
     }
-  }, []);
+  }, [locale]);
 
   const runCode = async () => {
     setIsRunning(true);
-    setError(null);
+    setErrorDiagnostic(null);
     setOutput([]);
     setParseSuccess(false);
     clearEditorMarkers();
@@ -417,7 +429,7 @@ export default function PseudocodePage() {
         code,
         async (prompt?: string) => {
           // 显示输入提示和输入框
-          const promptText = prompt ?? 'Enter input:';
+          const promptText = prompt ?? t('enterInput');
           setInputPrompt(promptText);
           setWaitingForInput(true);
           setInputValue('');
@@ -447,10 +459,12 @@ export default function PseudocodePage() {
       setFinalVariableTypes(parser.current.getVariableTypes());
       setArraysData(convertArraysData(parser.current.getArrays(), parser.current.getVariableTypes()));
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(friendlyErrorMessage(errMsg));
+      const diagnosticError = normalizePseudocodeError(
+        err instanceof Error ? err : new Error(t('unknownError')),
+      );
+      setErrorDiagnostic(diagnosticError.diagnostic);
       setParseSuccess(false);
-      showEditorError(errMsg);
+      showEditorError(diagnosticError);
     } finally {
       setIsRunning(false);
       setWaitingForInput(false);
@@ -515,7 +529,7 @@ export default function PseudocodePage() {
   const resetCode = () => {
     setCode('');
     setOutput([]);
-    setError(null);
+    setErrorDiagnostic(null);
     setParseSuccess(false);
     setVirtualFiles({});
     setSelectedFile(null);
@@ -619,7 +633,7 @@ export default function PseudocodePage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center">
-        <div className="text-slate-500">Loading editor...</div>
+        <div className="text-slate-500">{t('loadingEditor')}</div>
       </div>
     );
   }
@@ -630,9 +644,9 @@ export default function PseudocodePage() {
       <Dialog open={showSyllabusDialog} onOpenChange={(open) => { if (!open) setShowSyllabusDialog(false); }}>
         <DialogContent className={`sm:max-w-md ${styles.outputBg} ${styles.outputBorder} ${styles.text}`} onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className={styles.headerText}>Welcome to Pseudocode Editor</DialogTitle>
+            <DialogTitle className={styles.headerText}>{t('welcomeTitle')}</DialogTitle>
             <DialogDescription className={styles.outputDimText}>
-              Choose your syllabus to get started. You can change this later from the top menu.
+              {t('chooseSyllabus')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
@@ -641,14 +655,14 @@ export default function PseudocodePage() {
               className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors ${styles.headerBg} ${styles.outputLineBorder} hover:bg-[#162342] hover:border-[#6AA9FF]`}
             >
               <span className={`font-semibold text-base ${styles.headerText}`}>Cambridge IGCSE 0478</span>
-              <span className={`text-sm ${styles.outputDimText}`}>Computer Science — O Level pseudocode standard</span>
+              <span className={`text-sm ${styles.outputDimText}`}>{t('igcseDescription')}</span>
             </button>
             <button
               onClick={() => { setSyllabus('alevel-9618'); setShowSyllabusDialog(false); }}
               className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors ${styles.headerBg} ${styles.outputLineBorder} hover:bg-[#162342] hover:border-[#6AA9FF]`}
             >
               <span className={`font-semibold text-base ${styles.headerText}`}>Cambridge A-Level 9618</span>
-              <span className={`text-sm ${styles.outputDimText}`}>Computer Science — A Level pseudocode standard</span>
+              <span className={`text-sm ${styles.outputDimText}`}>{t('alevelDescription')}</span>
             </button>
           </div>
         </DialogContent>
@@ -661,8 +675,8 @@ export default function PseudocodePage() {
       <div className={`h-12 border-b flex items-center px-2 md:px-4 shrink-0 ${styles.headerBg} ${styles.headerBorder}`}>
         <FileCode className="w-5 h-5 mr-1 md:mr-2 text-purple-400 shrink-0" />
         <h1 className={`text-sm md:text-lg font-semibold ${styles.headerText} truncate`}>
-          <span className="hidden sm:inline">Pseudocode Editor</span>
-          <span className="sm:hidden">Pseudo IDE</span>
+          <span className="hidden sm:inline">{t('appName')}</span>
+          <span className="sm:hidden">{t('appNameShort')}</span>
         </h1>
         <div className="ml-1 md:ml-2">
           <DropdownMenu>
@@ -696,7 +710,7 @@ export default function PseudocodePage() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className={`${styles.buttonText} styles.buttonHover`}>
                 <FileCode className="w-4 h-4 mr-0 md:mr-1" />
-                <span className="hidden md:inline">File</span>
+                <span className="hidden md:inline">{t('file')}</span>
                 <ChevronDown className="w-3 h-3 ml-0 md:ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -713,28 +727,28 @@ export default function PseudocodePage() {
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
               >
                 {saved ? <Check className="w-4 h-4 mr-2" /> : <Download className="w-4 h-4 mr-2" />}
-                {saved ? 'Saved!' : 'Save'}
+                {saved ? t('saved') : t('save')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => fileInputRef.current?.click()}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Import
+                {t('import')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={handleExportCode}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                {t('export')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={resetCode}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Reset
+                {t('reset')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -746,7 +760,7 @@ export default function PseudocodePage() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className={`${styles.buttonText} styles.buttonHover`}>
                 <Sun className="w-4 h-4 mr-0 md:mr-1" />
-                <span className="hidden md:inline">View</span>
+                <span className="hidden md:inline">{t('view')}</span>
                 <ChevronDown className="w-3 h-3 ml-0 md:ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -800,31 +814,42 @@ export default function PseudocodePage() {
                 Forest
               </DropdownMenuItem>
               <DropdownMenuSeparator className={`${styles.dropdownBorder}`} />
-              <div className={`px-2 py-1.5 text-xs font-semibold ${styles.outputDimText}`}>Layout</div>
+              <div className={`px-2 py-1.5 text-xs font-semibold ${styles.outputDimText}`}>{t('layout')}</div>
               <DropdownMenuItem
                 onClick={() => setDesktopLayout('side-by-side')}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${desktopLayout === 'side-by-side' ? (theme === 'light' ? 'bg-slate-100' : 'bg-slate-800') : ''}`}
               >
-                ◀▶ Side by Side
+                ◀▶ {t('sideBySide')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDesktopLayout('stacked')}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${desktopLayout === 'stacked' ? (theme === 'light' ? 'bg-slate-100' : 'bg-slate-800') : ''}`}
               >
-                ▲▼ Stacked
+                ▲▼ {t('stacked')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDesktopLayout('editor-only')}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${desktopLayout === 'editor-only' ? (theme === 'light' ? 'bg-slate-100' : 'bg-slate-800') : ''}`}
               >
-                📝 Editor Only
+                📝 {t('editorOnly')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDesktopLayout('panel-only')}
                 className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${desktopLayout === 'panel-only' ? (theme === 'light' ? 'bg-slate-100' : 'bg-slate-800') : ''}`}
               >
-                📊 Panel Only
+                📊 {t('panelOnly')}
               </DropdownMenuItem>
+              <DropdownMenuSeparator className={`${styles.dropdownBorder}`} />
+              <div className={`px-2 py-1.5 text-xs font-semibold ${styles.outputDimText}`}>{t('language')}</div>
+              {supportedLocales.map(language => (
+                <DropdownMenuItem
+                  key={language}
+                  onClick={() => setLocale(language)}
+                  className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer ${locale === language ? (theme === 'light' ? 'bg-slate-100' : 'bg-slate-800') : ''}`}
+                >
+                  {localeNames[language]}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -835,20 +860,20 @@ export default function PseudocodePage() {
           size="sm"
           className={`${styles.buttonText} ${styles.buttonHover}`}
           onClick={() => { setBugDescription(''); setBugCopied(false); setShowBugDialog(true); }}
-          title="Report a Bug"
+          title={t('reportBug')}
         >
           <MessageCircleWarning className="w-4 h-4 mr-0 md:mr-1" />
-          <span className="hidden md:inline text-xs">Bug</span>
+          <span className="hidden md:inline text-xs">{t('bug')}</span>
         </Button>
         {isRunning ? (
           <Button onClick={stopCode} size="sm" className="bg-red-600 hover:bg-red-700 text-white ml-1 md:ml-2">
             <Square className="w-4 h-4 mr-0 md:mr-1" />
-            <span className="hidden sm:inline">Stop</span>
+            <span className="hidden sm:inline">{t('stop')}</span>
           </Button>
         ) : (
           <Button onClick={runCode} size="sm" className={`${styles.runBtnBg} styles.runBtnHover ml-1 md:ml-2`}>
             <Play className="w-4 h-4 mr-0 md:mr-1" />
-            <span className="hidden sm:inline">Run</span>
+            <span className="hidden sm:inline">{t('run')}</span>
           </Button>
         )}
       </div>
@@ -943,7 +968,7 @@ export default function PseudocodePage() {
               <TabsList className="bg-transparent h-9 md:h-10">
                 <TabsTrigger value="output" className={`${styles.tabActiveBg} ${styles.tabActiveText} ${styles.tabText} ${styles.tabHoverText}`}>
                   <Terminal className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Output</span>
+                  <span className="hidden sm:inline">{t('output')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="ast" className={`${styles.tabActiveBg} data-[state=active]:text-purple-500 ${styles.tabText} ${styles.tabHoverText}`}>
                   <Code className="w-4 h-4 sm:mr-1" />
@@ -951,11 +976,11 @@ export default function PseudocodePage() {
                 </TabsTrigger>
                 <TabsTrigger value="reference" className={`${styles.tabActiveBg} data-[state=active]:text-blue-500 ${styles.tabText} ${styles.tabHoverText}`}>
                   <BookOpen className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Reference</span>
+                  <span className="hidden sm:inline">{t('reference')}</span>
                 </TabsTrigger>
                 <TabsTrigger value="files" className={`${styles.tabActiveBg} data-[state=active]:text-emerald-500 ${styles.tabText} ${styles.tabHoverText}`}>
                   <FileCode className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Files</span>
+                  <span className="hidden sm:inline">{t('files')}</span>
                   {Object.keys(virtualFiles).length > 0 && (
                     <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white">
                       {Object.keys(virtualFiles).length}
@@ -964,7 +989,7 @@ export default function PseudocodePage() {
                 </TabsTrigger>
                 <TabsTrigger value="trace" className={`${styles.tabActiveBg} data-[state=active]:text-amber-500 ${styles.tabText} ${styles.tabHoverText}`}>
                   <Table className="w-4 h-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Trace</span>
+                  <span className="hidden sm:inline">{t('trace')}</span>
                   {traceTable.length > 0 && (
                     <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-white">
                       {traceTable.length}
@@ -988,7 +1013,7 @@ export default function PseudocodePage() {
                       {parseSuccess && !error && output.length > 0 && (
                         <div className={`flex items-center gap-2 text-sm ${styles.outputSuccessText}`}>
                           <CheckCircle className="w-4 h-4 shrink-0" />
-                          <span>Code executed successfully!</span>
+                            <span>{t('executedSuccessfully')}</span>
                         </div>
                       )}
                     </div>
@@ -1002,12 +1027,12 @@ export default function PseudocodePage() {
                         {copied ? (
                           <>
                             <Check className="w-4 h-4 mr-1" />
-                            Copied!
+                                {t('copied')}
                           </>
                         ) : (
                           <>
                             <Copy className="w-4 h-4 mr-1" />
-                            Copy
+                                {t('copy')}
                           </>
                         )}
                       </Button>
@@ -1016,7 +1041,7 @@ export default function PseudocodePage() {
 
                   <div className="flex-1 overflow-auto p-4 font-mono text-sm custom-scrollbar">
                     {output.length === 0 && !waitingForInput ? (
-                      <p className={styles.outputDimText}>Click &quot;Run&quot; to execute the code...</p>
+                          <p className={styles.outputDimText}>{t('clickRun')}</p>
                     ) : (
                       <>
                         {output.map((line, i) => (
@@ -1031,7 +1056,7 @@ export default function PseudocodePage() {
                               onChange={(e) => setInputValue(e.target.value)}
                               onKeyDown={handleInputKeyDown}
                               className={`flex-1 bg-transparent border-b-2 outline-none ${styles.outputSuccessText} ${styles.runBtnBg === 'bg-emerald-600' ? 'border-emerald-500' : styles.runBtnBg === 'bg-orange-500' ? 'border-orange-400' : styles.runBtnBg === 'bg-pink-500' ? 'border-pink-400' : styles.runBtnBg === 'bg-cyan-500' ? 'border-cyan-400' : styles.runBtnBg === 'bg-indigo-500' ? 'border-indigo-400' : 'border-slate-400'}`}
-                              placeholder="Type and press Enter..."
+                                  placeholder={t('typeAndEnter')}
                               autoFocus
                             />
                           </div>
@@ -1049,7 +1074,7 @@ export default function PseudocodePage() {
                     {astJson ? (
                       <SyntaxHighlighter code={astJson} theme={theme || 'dark'} />
                     ) : (
-                      'Click "Run" to see the AST...'
+                      t('clickRunAst')
                     )}
                   </pre>
                 </div>
@@ -1058,7 +1083,7 @@ export default function PseudocodePage() {
               <TabsContent value="reference" className="h-full m-0 p-0 flex flex-col">
                 <div className="flex-1 overflow-auto p-4 space-y-4 text-sm custom-scrollbar">
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Data Types</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('dataTypes')}</h3>
                     <div className="grid grid-cols-2 gap-1">
                       <code className={`${styles.refCodeBg} px-2 py-1 rounded text-blue-500`}>INTEGER</code>
                       <code className={`${styles.refCodeBg} px-2 py-1 rounded text-blue-500`}>REAL</code>
@@ -1069,7 +1094,7 @@ export default function PseudocodePage() {
                   </div>
                   <Separator className={styles.separatorBg} />
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Built-in Functions</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('builtInFunctions')}</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>LENGTH(string)</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-cyan-500`}>
@@ -1100,7 +1125,7 @@ export default function PseudocodePage() {
                   </div>
                   <Separator className={styles.separatorBg} />
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Control Structures</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('controlStructures')}</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-purple-500`}>IF condition THEN ... ENDIF</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-purple-500`}>IF condition THEN ... ELSE ... ENDIF</code>
@@ -1119,7 +1144,7 @@ export default function PseudocodePage() {
                   </div>
                   <Separator className={styles.separatorBg} />
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Declarations &amp; Assignment</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('declarationsAssignment')}</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-amber-500`}>DECLARE name : INTEGER</code>
                       {syllabus === 'igcse-0478' ? (
@@ -1133,7 +1158,7 @@ export default function PseudocodePage() {
                   </div>
                   <Separator className={styles.separatorBg} />
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>File Operations</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('fileOperations')}</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>OPENFILE filename FOR READ</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-rose-500`}>OPENFILE filename FOR WRITE</code>
@@ -1154,7 +1179,7 @@ export default function PseudocodePage() {
                   </div>
                   <Separator className={styles.separatorBg} />
                   <div>
-                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>Functions &amp; Procedures</h3>
+                    <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('functionsProcedures')}</h3>
                     <div className="space-y-1 font-mono text-xs">
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-teal-500`}>FUNCTION Name(params) RETURNS type</code>
                       <code className={`block ${styles.refCodeBg} px-2 py-1 rounded text-teal-500`}>  RETURN value</code>
@@ -1171,25 +1196,25 @@ export default function PseudocodePage() {
                     <>
                       <Separator className={styles.separatorBg} />
                       <div>
-                        <h3 className={`font-semibold mb-2 ${styles.headerText}`}>A-Level 9618 Differences</h3>
+                        <h3 className={`font-semibold mb-2 ${styles.headerText}`}>{t('alevelDifferences')}</h3>
                         <div className="space-y-2 text-xs">
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">CONSTANT</span> uses <code>=</code> instead of <code>&lt;-</code>
+                            <span className="font-semibold text-amber-400">CONSTANT</span> {t('usesInsteadOf', { value: '=', other: '<-' })}
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">WHILE</span> does not use <code>DO</code>
+                            <span className="font-semibold text-amber-400">WHILE</span> {t('whileNoDo')}
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">CALL</span> keyword required for procedure calls
+                            <span className="font-semibold text-amber-400">CALL</span> {t('callRequired')}
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">CASE</span> supports <code>TO</code> for ranges: <code>1 TO 5 : ...</code>
+                            <span className="font-semibold text-amber-400">CASE</span> {t('caseRanges')}
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">MID()</span> replaces SUBSTRING(), <span className="font-semibold text-amber-400">RIGHT()</span> extracts right characters
+                            {t('stringDifferences')}
                           </div>
                           <div className={`${styles.headerText}`}>
-                            <span className="font-semibold text-amber-400">RAND(x)</span> returns 0 to x, <span className="font-semibold text-amber-400">INT(x)</span> truncates toward zero
+                            {t('numericDifferences')}
                           </div>
                         </div>
                       </div>
@@ -1208,7 +1233,7 @@ export default function PseudocodePage() {
                         <div className="flex items-center justify-between">
                           <h3 className={`text-sm font-semibold ${styles.headerText}`}>
                             <FileCode className="w-4 h-4 inline mr-1" />
-                            Virtual Files
+                            {t('virtualFiles')}
                           </h3>
                           <div className="flex items-center gap-1">
                             <Button
@@ -1216,7 +1241,7 @@ export default function PseudocodePage() {
                               size="sm"
                               onClick={() => { setIsAddingFile(true); setNewFileName(''); }}
                               className={`h-6 px-2 text-xs ${styles.buttonText} styles.buttonHover`}
-                              title="Add file"
+                              title={t('addFile')}
                             >
                               <Plus className="w-3 h-3" />
                             </Button>
@@ -1225,7 +1250,7 @@ export default function PseudocodePage() {
                               size="sm"
                               onClick={() => fileInputRef.current?.click()}
                               className={`h-6 px-2 text-xs ${styles.buttonText} styles.buttonHover`}
-                              title="Upload file"
+                              title={t('uploadFile')}
                             >
                               <Upload className="w-3 h-3" />
                             </Button>
@@ -1243,7 +1268,7 @@ export default function PseudocodePage() {
                                 size="sm"
                                 onClick={clearAllVirtualFiles}
                                 className={`h-6 px-2 text-xs ${styles.buttonText} styles.buttonHover`}
-                                title="Clear all files"
+                                title={t('clearFiles')}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
@@ -1268,7 +1293,7 @@ export default function PseudocodePage() {
                               <button
                                 onClick={() => deleteVirtualFile(filename)}
                                 className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity ${styles.buttonText} hover:text-red-400`}
-                                title="Delete file"
+                                title={t('deleteFile')}
                               >
                                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -1312,7 +1337,7 @@ export default function PseudocodePage() {
                         </div>
                         {Object.keys(virtualFiles).length === 0 && !isAddingFile && (
                           <p className={`text-xs text-center mt-2 ${styles.outputDimText}`}>
-                            No files yet. Click + to add.
+                            {t('noFiles')}
                           </p>
                         )}
                       </div>
@@ -1322,7 +1347,7 @@ export default function PseudocodePage() {
                     <div className="flex-1 flex flex-col overflow-hidden">
                       {!selectedFile ? (
                         <div className={`flex-1 flex items-center justify-center ${styles.outputDimText}`}>
-                          <p className="text-sm">Select a file to preview</p>
+                          <p className="text-sm">{t('selectFile')}</p>
                         </div>
                       ) : (
                         <>
@@ -1339,7 +1364,7 @@ export default function PseudocodePage() {
                                   navigator.clipboard.writeText(content);
                                 }}
                                 className={`${styles.buttonText} styles.buttonHover`}
-                                title="Copy content"
+                                title={t('copyContent')}
                               >
                                 <Copy className="w-4 h-4" />
                               </Button>
@@ -1348,7 +1373,7 @@ export default function PseudocodePage() {
                                 size="sm"
                                 onClick={() => deleteVirtualFile(selectedFile!)}
                                 className={`${styles.buttonText} hover:text-red-400`}
-                                title="Delete file"
+                                title={t('deleteFile')}
                               >
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -1365,7 +1390,7 @@ export default function PseudocodePage() {
                             <textarea
                               className={`flex-1 resize-none bg-transparent outline-none ${styles.headerText} font-mono text-xs pt-4 pb-4 pr-4 leading-[1.625rem] custom-scrollbar`}
                               value={virtualFiles[selectedFile]?.join('\n') || ''}
-                              placeholder="Start typing..."
+                              placeholder={t('startTyping')}
                               onChange={(e) => {
                                 const text = e.target.value;
                                 const lines = text ? text.split('\n') : [];
@@ -1393,7 +1418,7 @@ export default function PseudocodePage() {
                 <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
                   {traceTable.length === 0 && Object.keys(arraysData).length === 0 ? (
                     <div className={`flex-1 flex items-center justify-center p-8 ${styles.outputDimText}`}>
-                      <p className="text-sm">Click Run to generate a trace table</p>
+                      <p className="text-sm">{t('traceEmpty')}</p>
                     </div>
                   ) : (
                     <div className="space-y-4 p-2">
@@ -1481,11 +1506,11 @@ export default function PseudocodePage() {
                       {traceTable.length > 0 && (
                         <div className={`${styles.headerBg} rounded-lg border ${styles.outputLineBorder}`}>
                           <div className={`px-3 py-2 font-semibold text-sm ${styles.headerText} border-b ${styles.outputLineBorder} flex items-center justify-between`}>
-                            Trace Table
+                            {t('traceTable')}
                             <button
                               onClick={exportTraceTable}
                               className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 ${styles.outputDimText} hover:text-blue-400 transition-colors`}
-                              title="Export to Excel"
+                              title={t('exportExcel')}
                             >
                               <Download className="w-3.5 h-3.5" />
                             </button>
@@ -1494,11 +1519,11 @@ export default function PseudocodePage() {
                             <table className="w-full text-xs font-mono">
                               <thead className={`sticky top-0 ${styles.headerBg} border-b ${styles.outputLineBorder}`}>
                                 <tr>
-                                  <th className={`px-3 py-2 text-left font-semibold ${styles.headerText} border-r ${styles.outputLineBorder}`}>Line</th>
+                                  <th className={`px-3 py-2 text-left font-semibold ${styles.headerText} border-r ${styles.outputLineBorder}`}>{t('line')}</th>
                                   {traceColumns.map(col => (
                                     <th key={col} className={`px-3 py-2 text-left font-semibold ${styles.headerText} border-r ${styles.outputLineBorder}`}>{col}</th>
                                   ))}
-                                  <th className={`px-3 py-2 text-left font-semibold ${styles.headerText}`}>Output</th>
+                                  <th className={`px-3 py-2 text-left font-semibold ${styles.headerText}`}>{t('output')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1537,21 +1562,21 @@ export default function PseudocodePage() {
             className={`flex flex-col items-center gap-0.5 px-3 py-1 ${mobileView === 'editor' ? 'text-purple-400' : styles.outputDimText}`}
           >
             <Code className="w-5 h-5" />
-            <span className="text-[10px]">Editor</span>
+            <span className="text-[10px]">{t('editor')}</span>
           </button>
           <button
             onClick={isRunning ? stopCode : runCode}
             className={`flex flex-col items-center gap-0.5 px-3 py-1 ${isRunning ? 'text-red-400' : 'text-green-400'}`}
           >
             {isRunning ? <Square className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            <span className="text-[10px]">{isRunning ? 'Stop' : 'Run'}</span>
+            <span className="text-[10px]">{isRunning ? t('stop') : t('run')}</span>
           </button>
           <button
             onClick={() => setMobileView('panel')}
             className={`flex flex-col items-center gap-0.5 px-3 py-1 ${mobileView === 'panel' ? 'text-purple-400' : styles.outputDimText}`}
           >
             <Terminal className="w-5 h-5" />
-            <span className="text-[10px]">Panel</span>
+            <span className="text-[10px]">{t('panel')}</span>
           </button>
         </div>
       )}
@@ -1561,33 +1586,40 @@ export default function PseudocodePage() {
     <Dialog open={showBugDialog} onOpenChange={setShowBugDialog}>
       <DialogContent className={`sm:max-w-lg ${styles.outputBg} ${styles.outputBorder} ${styles.text}`}>
         <DialogHeader>
-          <DialogTitle className={styles.headerText}>Report a Bug</DialogTitle>
+          <DialogTitle className={styles.headerText}>{t('reportBug')}</DialogTitle>
           <DialogDescription className={styles.outputDimText}>
-            Describe the issue. Your code and output will be automatically included.
+            {t('bugDescription')}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
           <div>
-            <label className={`text-sm font-medium mb-1.5 block ${styles.headerText}`}>What went wrong?</label>
+            <label className={`text-sm font-medium mb-1.5 block ${styles.headerText}`}>{t('whatWentWrong')}</label>
             <Textarea
               value={bugDescription}
               onChange={(e) => setBugDescription(e.target.value)}
-              placeholder="Describe the bug: what did you expect to happen, and what actually happened?"
+              placeholder={t('bugPlaceholder')}
               rows={4}
               className={`resize-none ${styles.headerBg} ${styles.outputLineBorder} ${styles.headerText} placeholder:text-current placeholder:opacity-50`}
             />
           </div>
           <div className={`text-xs ${styles.outputDimText} space-y-1`}>
-            <p>The following will be automatically included:</p>
+            <p>{t('automaticallyIncluded')}</p>
             <ul className="list-disc list-inside space-y-0.5 ml-1">
-              <li>Current code in the editor</li>
-              <li>Output and error messages</li>
-              {Object.keys(virtualFiles).length > 0 && <li>Virtual files ({Object.keys(virtualFiles).length} file{Object.keys(virtualFiles).length > 1 ? 's' : ''})</li>}
-              <li>Syllabus, theme, and browser info</li>
+              <li>{t('currentCode')}</li>
+              <li>{t('outputErrors')}</li>
+              {Object.keys(virtualFiles).length > 0 && (
+                <li>
+                  {t('virtualFileCount', {
+                    count: Object.keys(virtualFiles).length,
+                    label: Object.keys(virtualFiles).length === 1 ? t('fileSingular') : t('filePlural'),
+                  })}
+                </li>
+              )}
+              <li>{t('environmentInfo')}</li>
             </ul>
           </div>
           <div className={`text-xs rounded-md p-3 max-h-40 overflow-auto font-mono border ${styles.headerBg} ${styles.headerText} ${styles.outputLineBorder}`}>
-            <pre className="whitespace-pre-wrap break-all">{generateBugReport().slice(0, 800)}{generateBugReport().length > 800 ? '\n...(truncated preview)' : ''}</pre>
+            <pre className="whitespace-pre-wrap break-all">{generateBugReport().slice(0, 800)}{generateBugReport().length > 800 ? `\n${t('truncatedPreview')}` : ''}</pre>
           </div>
         </div>
         <div className="flex gap-2 justify-end">
@@ -1598,7 +1630,7 @@ export default function PseudocodePage() {
             className={`${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
           >
             <Download className="w-4 h-4 mr-1.5" />
-            Download
+            {t('download')}
           </Button>
           <Button
             size="sm"
@@ -1606,7 +1638,7 @@ export default function PseudocodePage() {
             className={bugCopied ? 'bg-green-600 hover:bg-green-700 text-white' : `${styles.runBtnBg} ${styles.runBtnHover} ${styles.runBtnText}`}
           >
             {bugCopied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />}
-            {bugCopied ? 'Copied!' : 'Copy to Clipboard'}
+            {bugCopied ? t('copied') : t('copyClipboard')}
           </Button>
         </div>
       </DialogContent>

@@ -17,6 +17,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { normalizePseudocodeError } from './diagnostics';
 
 // ─── Return 控制流 ───
 class ReturnSignal {
@@ -3348,25 +3349,41 @@ export class ALevelParser {
   public abort(): void { this.interpreter.abort(); }
 
   public parse(source: string): ASTNode {
-    this.lexer = new Lexer(source);
-    const tokens = this.lexer.tokenize();
-    this.parser = new Parser(tokens);
-    return this.parser.parse();
+    try {
+      this.lexer = new Lexer(source);
+      const tokens = this.lexer.tokenize();
+      this.parser = new Parser(tokens);
+      return this.parser.parse();
+    } catch (error) {
+      throw normalizePseudocodeError(error);
+    }
   }
 
   public async run(source: string, inputCallback?: (prompt?: string) => Promise<unknown>, onOutput?: (text: string) => void): Promise<string[]> {
-    this.interpreter.reset();
-    const ast = this.parse(source);
-    if (inputCallback) this.interpreter.setInputCallback(inputCallback);
-    if (onOutput) this.interpreter.setOnOutput(onOutput);
-    return this.interpreter.execute(ast);
+    try {
+      this.interpreter.reset();
+      const ast = this.parse(source);
+      if (inputCallback) this.interpreter.setInputCallback(inputCallback);
+      if (onOutput) this.interpreter.setOnOutput(onOutput);
+      return await this.interpreter.execute(ast);
+    } catch (error) {
+      throw normalizePseudocodeError(error);
+    }
   }
 
   public checkSyntax(source: string): Array<{ line: number; message: string }> {
-    this.lexer = new Lexer(source);
-    const tokens = this.lexer.tokenize();
-    this.parser = new Parser(tokens);
-    return this.parser.checkSyntax();
+    try {
+      this.lexer = new Lexer(source);
+      const tokens = this.lexer.tokenize();
+      this.parser = new Parser(tokens);
+      return this.parser.checkSyntax();
+    } catch (error) {
+      const diagnosticError = normalizePseudocodeError(error);
+      return [{
+        line: diagnosticError.diagnostic.line ?? 1,
+        message: diagnosticError.message,
+      }];
+    }
   }
 
   public getTokens(source: string): Token[] {

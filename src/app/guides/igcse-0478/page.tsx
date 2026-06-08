@@ -4,6 +4,7 @@ import {
   CodeExample,
   GuideSection,
   GuideShell,
+  GuideText,
 } from '@/components/GuideShell';
 
 export const metadata: Metadata = {
@@ -34,16 +35,13 @@ export const metadata: Metadata = {
 export default function IgcseGuidePage() {
   return (
     <GuideShell
-      eyebrow="IGCSE Computer Science 0478"
-      title="Cambridge IGCSE 0478 pseudocode guide"
-      description="A practical reference for the IGCSE mode of the editor, covering the core syntax used to write, trace, and test algorithms."
+      eyebrowKey="guides.igcse.eyebrow"
+      titleKey="guides.igcse.title"
+      descriptionKey="guides.igcse.description"
       path="/guides/igcse-0478/"
     >
-      <GuideSection title="Variables, constants, and arrays">
-        <p>
-          Declare every variable before use. Arrays may have one or two
-          dimensions, and their bounds are inclusive.
-        </p>
+      <GuideSection titleKey="guides.igcse.variables.title">
+        <p><GuideText messageKey="guides.igcse.variables.text" /></p>
         <CodeExample>{`
 DECLARE Name : STRING
 DECLARE Score : INTEGER
@@ -56,10 +54,17 @@ OUTPUT "First score: ", Results[1]
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Selection and iteration">
+      <GuideSection titleKey="guides.igcse.selection.title">
         <p>
-          Use <code>ENDIF</code>, <code>NEXT</code>, <code>ENDWHILE</code>,
-          and <code>UNTIL</code> to close control structures.
+          <GuideText
+            messageKey="guides.igcse.selection.text"
+            values={{
+              endif: <code>ENDIF</code>,
+              next: <code>NEXT</code>,
+              endwhile: <code>ENDWHILE</code>,
+              until: <code>UNTIL</code>,
+            }}
+          />
         </p>
         <CodeExample>{`
 DECLARE Index : INTEGER
@@ -78,11 +83,8 @@ ENDIF
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Procedures and functions">
-        <p>
-          Procedures perform a task. Functions return a value that can be used
-          inside an expression.
-        </p>
+      <GuideSection titleKey="guides.igcse.subroutines.title">
+        <p><GuideText messageKey="guides.igcse.subroutines.text" /></p>
         <CodeExample>{`
 FUNCTION IsPass(Score : INTEGER) RETURNS BOOLEAN
    RETURN Score >= 50
@@ -100,11 +102,8 @@ CALL ShowResult(72)
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Text file handling">
-        <p>
-          The editor uses virtual files, so file algorithms can be practised
-          without accessing files on your computer.
-        </p>
+      <GuideSection titleKey="guides.igcse.files.title">
+        <p><GuideText messageKey="guides.igcse.files.text" /></p>
         <CodeExample>{`
 DECLARE Line : STRING
 OPENFILE "names.txt" FOR READ
@@ -116,20 +115,17 @@ CLOSEFILE "names.txt"
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Continue practising">
-        <p>
-          Run these examples in IGCSE mode, then use the trace table to inspect
-          each variable change.
-        </p>
+      <GuideSection titleKey="guides.igcse.continue.title">
+        <p><GuideText messageKey="guides.igcse.continue.text" /></p>
         <div className="flex flex-wrap gap-4">
           <Link className="font-semibold text-[#8ED0FF] hover:text-white" href="/">
-            Open the editor
+            <GuideText messageKey="guides.igcse.openEditor" />
           </Link>
           <Link
             className="font-semibold text-[#8ED0FF] hover:text-white"
             href="/guides/alevel-9618/"
           >
-            Compare A Level 9618 syntax
+            <GuideText messageKey="guides.igcse.compare" />
           </Link>
         </div>
       </GuideSection>

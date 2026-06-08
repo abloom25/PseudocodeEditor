@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
+import { localeNames, supportedLocales, type MessageKey } from '@/lib/i18n';
 import {
   ArrowLeft,
   BookOpen,
@@ -11,22 +15,24 @@ import {
 } from 'lucide-react';
 
 type GuideShellProps = {
-  title: string;
-  description: string;
-  eyebrow: string;
+  titleKey: MessageKey;
+  descriptionKey: MessageKey;
+  eyebrowKey: MessageKey;
   children: ReactNode;
   showBackLink?: boolean;
   path: string;
 };
 
 export function GuideShell({
-  title,
-  description,
-  eyebrow,
+  titleKey,
+  descriptionKey,
+  eyebrowKey,
   children,
   showBackLink = true,
   path,
 }: GuideShellProps) {
+  const { locale, setLocale, t } = useLanguage();
+  const localizedTitle = t(titleKey);
   const siteUrl = 'https://pseudocode.site';
   const breadcrumbItems = [
     {
@@ -47,7 +53,7 @@ export function GuideShell({
     breadcrumbItems.push({
       '@type': 'ListItem',
       position: 3,
-      name: title,
+      name: localizedTitle,
       item: `${siteUrl}${path}`,
     });
   }
@@ -66,7 +72,7 @@ export function GuideShell({
       />
       <header className="sticky top-0 z-20 h-12 border-b border-[#111A33] bg-[#0A1020]/95 backdrop-blur">
         <nav
-          aria-label="Primary navigation"
+          aria-label={t('primaryNavigation')}
           className="flex h-full w-full items-center justify-between px-2 md:px-4"
         >
           <Link
@@ -76,7 +82,7 @@ export function GuideShell({
             <FileCode2 className="h-5 w-5 text-[#9D8CFF]" />
             <span>Pseudocode Editor</span>
             <span className="hidden rounded bg-[#111A33] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#FFD08A] sm:inline">
-              Guides
+              {t('guides')}
             </span>
           </Link>
           <div className="flex items-center gap-1 text-sm">
@@ -84,14 +90,14 @@ export function GuideShell({
               href="/guides/"
               className="hidden rounded-md px-3 py-1.5 text-[#BFD1FF] transition hover:bg-[#162342] hover:text-white sm:inline-flex"
             >
-              Reference
+              {t('guideReference')}
             </Link>
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-md bg-[#2B4D91] px-3 py-1.5 font-medium text-white transition hover:bg-[#3B67BD]"
             >
               <Play className="h-3.5 w-3.5 fill-current" />
-              Open editor
+              {t('openEditor')}
             </Link>
           </div>
         </nav>
@@ -105,7 +111,7 @@ export function GuideShell({
               className="mb-6 inline-flex items-center gap-1.5 text-sm text-[#6D7FA8] transition hover:text-[#BFD1FF]"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              All guides
+              {t('allGuides')}
             </Link>
           )}
           <div className="grid gap-6 lg:grid-cols-[1fr_280px] lg:items-end">
@@ -113,20 +119,20 @@ export function GuideShell({
               <div className="mb-4 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-[#6AA9FF]" />
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FFD08A]">
-                  {eyebrow}
+                  {t(eyebrowKey)}
                 </p>
               </div>
               <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-[#F4F7FF] md:text-5xl">
-                {title}
+                {localizedTitle}
               </h1>
               <p className="mt-5 max-w-3xl text-base leading-7 text-[#8FA3CC] md:text-lg">
-                {description}
+                {t(descriptionKey)}
               </p>
             </div>
             <div className="rounded-lg border border-[#22365F] bg-[#0A1020] p-4">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#6D7FA8]">
                 <TerminalSquare className="h-4 w-4 text-[#8ED0FF]" />
-                Editor workflow
+                {t('editorWorkflow')}
               </div>
               <div className="mt-3 flex items-center gap-2 font-mono text-sm text-[#BFD1FF]">
                 <span className="text-[#FFD08A]">WRITE</span>
@@ -148,11 +154,23 @@ export function GuideShell({
         <div className="flex w-full flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-[#6D7FA8]">
           <span className="flex items-center gap-2">
             <Braces className="h-4 w-4 text-[#6AA9FF]" />
-            Cambridge-style pseudocode reference
+            {t('footerReference')}
           </span>
           <Link href="/" className="font-medium text-[#8ED0FF] hover:text-white">
-            Open the editor →
+            {t('openEditor')} →
           </Link>
+          <div className="flex items-center gap-1 rounded-md border border-[#22365F] p-1">
+            {supportedLocales.map(language => (
+              <button
+                key={language}
+                type="button"
+                onClick={() => setLocale(language)}
+                className={`rounded px-2 py-1 text-xs ${locale === language ? 'bg-[#2B4D91] text-white' : 'text-[#8FA3CC] hover:text-white'}`}
+              >
+                {localeNames[language]}
+              </button>
+            ))}
+          </div>
         </div>
       </footer>
     </main>
@@ -160,18 +178,19 @@ export function GuideShell({
 }
 
 export function GuideSection({
-  title,
+  titleKey,
   children,
 }: {
-  title: string;
+  titleKey: MessageKey;
   children: ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <section className="overflow-hidden rounded-lg border border-[#111A33] bg-[#0A1020] shadow-[0_16px_50px_rgba(0,0,0,0.18)]">
       <div className="flex items-center gap-2 border-b border-[#111A33] bg-[#0D1528] px-4 py-3 md:px-5">
         <span className="h-2 w-2 rounded-full bg-[#6AA9FF]" />
         <h2 className="text-base font-semibold text-[#F4F7FF] md:text-lg">
-          {title}
+          {t(titleKey)}
         </h2>
       </div>
       <div className="space-y-4 px-4 py-5 leading-7 text-[#A9B9DA] md:px-5 [&_code]:rounded [&_code]:bg-[#111A33] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-sm [&_code]:text-[#FFD08A]">
@@ -179,6 +198,17 @@ export function GuideSection({
       </div>
     </section>
   );
+}
+
+export function GuideText({
+  messageKey,
+  values,
+}: {
+  messageKey: MessageKey;
+  values?: Record<string, ReactNode>;
+}) {
+  const { tr } = useLanguage();
+  return <>{tr(messageKey, values)}</>;
 }
 
 export function CodeExample({ children }: { children: string }) {

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Inspector } from 'react-dev-inspector';
 import { ThemeProvider } from 'next-themes';
+import { LanguageProvider } from '@/components/LanguageProvider';
+import { PrivacyNotice } from '@/components/PrivacyNotice';
 import { PWARegister } from '@/components/PWARegister';
 import './globals.css';
 
@@ -159,29 +161,32 @@ export default function RootLayout({
         suppressHydrationWarning
         className="antialiased h-screen overflow-hidden"
       >
-        <ThemeProvider
-          attribute="data-theme"
-          defaultTheme="nightlight"
-          themes={['nightlight', 'dark', 'light', 'monokai', 'dracula', 'solarized-dark', 'solarized-light', 'forest']}
-          storageKey="pseudocode-theme"
-        >
-          <script
-            type="application/ld+json"
-            suppressHydrationWarning
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-          />
-          {isDev && <Inspector />}
-          {children}
-          <PWARegister />
-          <Script
-            src="https://cloud.umami.is/script.js"
-            data-website-id={umamiWebsiteId}
-            data-domains="pseudocode.site"
-            data-do-not-track="true"
-            data-exclude-search="true"
-            strategy="afterInteractive"
-          />
-        </ThemeProvider>
+        <LanguageProvider>
+          <ThemeProvider
+            attribute="data-theme"
+            defaultTheme="nightlight"
+            themes={['nightlight', 'dark', 'light', 'monokai', 'dracula', 'solarized-dark', 'solarized-light', 'forest']}
+            storageKey="pseudocode-theme"
+          >
+            <script
+              type="application/ld+json"
+              suppressHydrationWarning
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
+            {isDev && <Inspector />}
+            {children}
+            <PrivacyNotice />
+            <PWARegister />
+            <Script
+              src="https://cloud.umami.is/script.js"
+              data-website-id={umamiWebsiteId}
+              data-domains="pseudocode.site"
+              data-do-not-track="true"
+              data-exclude-search="true"
+              strategy="afterInteractive"
+            />
+          </ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import {
   CodeExample,
   GuideSection,
   GuideShell,
+  GuideText,
 } from '@/components/GuideShell';
 
 export const metadata: Metadata = {
@@ -34,15 +35,17 @@ export const metadata: Metadata = {
 export default function ALevelGuidePage() {
   return (
     <GuideShell
-      eyebrow="A Level Computer Science 9618"
-      title="Cambridge A Level 9618 pseudocode guide"
-      description="A strict syntax reference for the A-Level mode of the editor, including user-defined types, array parameters, subroutines, and file access."
+      eyebrowKey="guides.alevel.eyebrow"
+      titleKey="guides.alevel.title"
+      descriptionKey="guides.alevel.description"
       path="/guides/alevel-9618/"
     >
-      <GuideSection title="Constants, records, and arrays">
+      <GuideSection titleKey="guides.alevel.constants.title">
         <p>
-          A-Level constants use <code>=</code>. A previously declared integer
-          constant can be used as an array bound.
+          <GuideText
+            messageKey="guides.alevel.constants.text"
+            values={{ equals: <code>=</code> }}
+          />
         </p>
         <CodeExample>{`
 TYPE StudentRecord
@@ -58,10 +61,12 @@ Students[1].Score <- 84
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Array parameters and BYREF">
+      <GuideSection titleKey="guides.alevel.parameters.title">
         <p>
-          Use <code>BYREF</code> when a procedure must update the caller&apos;s
-          variable or array.
+          <GuideText
+            messageKey="guides.alevel.parameters.text"
+            values={{ byref: <code>BYREF</code> }}
+          />
         </p>
         <CodeExample>{`
 CONSTANT MaxItems = 10
@@ -77,10 +82,12 @@ ENDPROCEDURE
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Functions and strict typing">
+      <GuideSection titleKey="guides.alevel.functions.title">
         <p>
-          Functions declare a return type and must return a compatible value.
-          Conditions must evaluate to <code>BOOLEAN</code>.
+          <GuideText
+            messageKey="guides.alevel.functions.text"
+            values={{ boolean: <code>BOOLEAN</code> }}
+          />
         </p>
         <CodeExample>{`
 FUNCTION CalculateGrade(Score : INTEGER) RETURNS CHAR
@@ -95,11 +102,16 @@ OUTPUT CalculateGrade(86)
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Text and random files">
+      <GuideSection titleKey="guides.alevel.files.title">
         <p>
-          Text files support sequential reading and writing. Random files use
-          records with <code>SEEK</code>, <code>GETRECORD</code>, and
-          <code>PUTRECORD</code>.
+          <GuideText
+            messageKey="guides.alevel.files.text"
+            values={{
+              seek: <code>SEEK</code>,
+              getrecord: <code>GETRECORD</code>,
+              putrecord: <code>PUTRECORD</code>,
+            }}
+          />
         </p>
         <CodeExample>{`
 DECLARE Student : StudentRecord
@@ -111,23 +123,23 @@ OUTPUT Student.StudentID
         `}</CodeExample>
       </GuideSection>
 
-      <GuideSection title="Important differences from IGCSE mode">
+      <GuideSection titleKey="guides.alevel.differences.title">
         <ul className="list-disc space-y-2 pl-6">
-          <li>Constants use <code>CONSTANT name = value</code>.</li>
-          <li><code>WHILE</code> does not use the <code>DO</code> keyword.</li>
-          <li>Procedure calls require <code>CALL</code>.</li>
-          <li><code>DIV</code> and <code>MOD</code> are infix operators.</li>
-          <li>A-Level string functions include <code>MID</code>, <code>LEFT</code>, and <code>RIGHT</code>.</li>
+          <li><GuideText messageKey="guides.alevel.differences.constant" values={{ syntax: <code>CONSTANT name = value</code> }} /></li>
+          <li><GuideText messageKey="guides.alevel.differences.while" values={{ whileKeyword: <code>WHILE</code>, doKeyword: <code>DO</code> }} /></li>
+          <li><GuideText messageKey="guides.alevel.differences.call" values={{ call: <code>CALL</code> }} /></li>
+          <li><GuideText messageKey="guides.alevel.differences.divMod" values={{ div: <code>DIV</code>, mod: <code>MOD</code> }} /></li>
+          <li><GuideText messageKey="guides.alevel.differences.strings" values={{ mid: <code>MID</code>, left: <code>LEFT</code>, right: <code>RIGHT</code> }} /></li>
         </ul>
         <div className="flex flex-wrap gap-4">
           <Link className="font-semibold text-[#8ED0FF] hover:text-white" href="/">
-            Open the editor
+            <GuideText messageKey="guides.alevel.openEditor" />
           </Link>
           <Link
             className="font-semibold text-[#8ED0FF] hover:text-white"
             href="/guides/igcse-0478/"
           >
-            Read the IGCSE 0478 guide
+            <GuideText messageKey="guides.alevel.readIgcse" />
           </Link>
         </div>
       </GuideSection>

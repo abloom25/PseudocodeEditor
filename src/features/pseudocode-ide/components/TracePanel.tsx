@@ -1,8 +1,8 @@
 'use client';
 
 import { Table } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/components/LanguageProvider';
 import type { UIThemeColors, TraceEntry, ArrayData } from '../types';
 
 interface TracePanelProps {
@@ -14,12 +14,13 @@ interface TracePanelProps {
 }
 
 export function TracePanel({ traceTable, arraysData, traceColumns, styles, onExport }: TracePanelProps) {
+  const { t } = useLanguage();
   const hasData = traceTable.length > 0 || Object.keys(arraysData).length > 0;
 
   if (!hasData) {
     return (
       <div className={`flex-1 flex items-center justify-center p-8 ${styles.outputDimText}`}>
-        <p className="text-sm">Click Run to generate a trace table</p>
+        <p className="text-sm">{t('traceEmpty')}</p>
       </div>
     );
   }
@@ -35,7 +36,7 @@ export function TracePanel({ traceTable, arraysData, traceColumns, styles, onExp
             className={`${styles.buttonText} ${styles.buttonHover}`}
           >
             <Table className="w-4 h-4 mr-1" />
-            Export Excel
+            {t('exportExcel')}
           </Button>
         </div>
       )}
@@ -125,17 +126,17 @@ export function TracePanel({ traceTable, arraysData, traceColumns, styles, onExp
       {traceTable.length > 0 && (
         <div className={`${styles.headerBg} rounded-lg border ${styles.outputLineBorder} overflow-x-auto`}>
           <div className={`px-3 py-2 font-semibold text-sm ${styles.headerText} border-b ${styles.outputLineBorder}`}>
-            Trace Table <span className={styles.outputDimText}>({traceTable.length} rows)</span>
+            {t('traceTable')} <span className={styles.outputDimText}>({t('traceRows', { count: traceTable.length })})</span>
           </div>
           <div className="p-2">
             <table className="text-xs font-mono w-full">
               <thead>
                 <tr>
-                  <th className={`px-2 py-1 text-left ${styles.outputDimText}`}>Line</th>
+                  <th className={`px-2 py-1 text-left ${styles.outputDimText}`}>{t('line')}</th>
                   {traceColumns.map(col => (
                     <th key={col} className={`px-2 py-1 text-left ${styles.outputDimText}`}>{col}</th>
                   ))}
-                  <th className={`px-2 py-1 text-left ${styles.outputDimText}`}>Output</th>
+                  <th className={`px-2 py-1 text-left ${styles.outputDimText}`}>{t('output')}</th>
                 </tr>
               </thead>
               <tbody>

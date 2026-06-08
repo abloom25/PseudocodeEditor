@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle, Copy, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/components/LanguageProvider';
 import type { UIThemeColors } from '../types';
 
 interface OutputPanelProps {
@@ -34,6 +35,7 @@ export function OutputPanel({
   onInputSubmit,
   onInputKeyDown,
 }: OutputPanelProps) {
+  const { t } = useLanguage();
   const outputEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export function OutputPanel({
           {parseSuccess && !error && output.length > 0 && (
             <div className={`flex items-center gap-2 text-sm ${styles.outputSuccessText}`}>
               <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>Code executed successfully!</span>
+              <span>{t('executedSuccessfully')}</span>
             </div>
           )}
         </div>
@@ -78,12 +80,12 @@ export function OutputPanel({
             {copied ? (
               <>
                 <Download className="w-4 h-4 mr-1" />
-                Copied!
+                {t('copied')}
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4 mr-1" />
-                Copy
+                {t('copy')}
               </>
             )}
           </Button>
@@ -92,7 +94,7 @@ export function OutputPanel({
 
       <div className="flex-1 overflow-auto p-4 font-mono text-sm custom-scrollbar">
         {output.length === 0 && !waitingForInput ? (
-          <p className={styles.outputDimText}>Click &quot;Run&quot; to execute the code...</p>
+          <p className={styles.outputDimText}>{t('clickRun')}</p>
         ) : (
           <>
             {output.map((line, i) => (
@@ -107,7 +109,7 @@ export function OutputPanel({
                   onChange={(e) => onInputChange(e.target.value)}
                   onKeyDown={onInputKeyDown}
                   className={`flex-1 bg-transparent border-b-2 outline-none ${styles.outputSuccessText} ${getRunBtnBorderColor()}`}
-                  placeholder="Type and press Enter..."
+                  placeholder={t('typeAndEnter')}
                   autoFocus
                 />
               </div>
