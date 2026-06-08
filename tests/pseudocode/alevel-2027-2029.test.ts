@@ -141,6 +141,44 @@ OUTPUT Pupil2.LastName, Form[1].YearGroup
   assert.deepEqual(output, ['Johnson 7']);
 });
 
+test('record array fields support bounds, class methods and inherited constructors', async () => {
+  const { output } = await run(`
+TYPE Student
+  DECLARE Name : STRING
+  DECLARE Scores : ARRAY[1:5] OF INTEGER
+ENDTYPE
+CLASS Person
+  PRIVATE Age : INTEGER
+  PUBLIC Name : STRING
+  PUBLIC PROCEDURE NEW(GivenName : STRING, GivenAge : INTEGER)
+    Name <- GivenName
+    Age <- GivenAge
+  ENDPROCEDURE
+  PUBLIC FUNCTION GetAge() RETURNS INTEGER
+    RETURN Age
+  ENDFUNCTION
+ENDCLASS
+CLASS StudentObj INHERITS Person
+  PRIVATE Records : Student
+  PUBLIC PROCEDURE NEW(GivenName : STRING, GivenAge : INTEGER)
+    SUPER.NEW(GivenName, GivenAge)
+  ENDPROCEDURE
+  PUBLIC PROCEDURE SetScore(Index : INTEGER, Score : INTEGER)
+    Records.Scores[Index] <- Score
+  ENDPROCEDURE
+  PUBLIC FUNCTION GetScore(Index : INTEGER) RETURNS INTEGER
+    RETURN Records.Scores[Index]
+  ENDFUNCTION
+ENDCLASS
+DECLARE Alice : StudentObj
+Alice <- NEW StudentObj("Alice", 16)
+CALL Alice.SetScore(1, 95)
+CALL Alice.SetScore(5, 88)
+OUTPUT Alice.Name, Alice.GetAge(), Alice.GetScore(1), Alice.GetScore(5)
+`);
+  assert.deepEqual(output, ['Alice 16 95 88']);
+});
+
 test('set type and DEFINE use the guide syntax', async () => {
   const { parser } = await run(`
 TYPE LetterSet = SET OF CHAR

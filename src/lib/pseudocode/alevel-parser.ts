@@ -118,7 +118,7 @@ export type ASTNodeType =
   | 'ProcedureDeclaration' | 'FunctionDeclaration' | 'FunctionCall'
   | 'BinaryExpression' | 'UnaryExpression'
   | 'Identifier' | 'NumberLiteral' | 'RealLiteral' | 'StringLiteral' | 'CharLiteral' | 'BooleanLiteral' | 'DateLiteral'
-  | 'ArrayAccess' | 'ArrayDeclaration'
+  | 'ArrayAccess' | 'ArrayFieldAccess' | 'ArrayDeclaration'
   | 'FileOpenRead' | 'FileOpenWrite' | 'FileOpenAppend' | 'FileOpenRandom' | 'FileRead' | 'FileWrite' | 'FileClose'
   | 'FileSeek' | 'FileGetRecord' | 'FilePutRecord'
   | 'RandomizeStatement' | 'Empty'
@@ -137,6 +137,17 @@ export interface ASTNode { type: ASTNodeType;[key: string]: unknown; }
 
 type ArrayBound = number | string;
 type ArrayDimension = { lower: ArrayBound; upper: ArrayBound };
+type RecordFieldDefinition = {
+  name: string;
+  dataType: string;
+  dimensions?: ArrayDimension[];
+};
+type RuntimeArrayValue = {
+  __arrayValue: true;
+  dims: { lower: number; upper: number }[];
+  data: unknown[];
+  elementType: string;
+};
 type CallableParameter = {
   name: string;
   type: string;
@@ -623,13 +634,33 @@ export class Parser {
     }
 
     // 否则是记录类型
-    const fields: { name: string; dataType: string }[] = [];
+    const fields: RecordFieldDefinition[] = [];
     while (this.peek().type !== TokenType.ENDTYPE) {
       this.expect(TokenType.DECLARE);
       const fieldNameTok = this.expect(TokenType.IDENTIFIER);
       this.expect(TokenType.COLON);
-      const fieldTypeTok = this.advance();
-      fields.push({ name: fieldNameTok.value, dataType: fieldTypeTok.value });
+      if (this.match(TokenType.ARRAY)) {
+        this.expect(TokenType.LBRACKET);
+        const dimensions: ArrayDimension[] = [this.parseArrayDimension(fieldNameTok.line)];
+        if (this.match(TokenType.COMMA)) dimensions.push(this.parseArrayDimension(fieldNameTok.line));
+        this.expect(TokenType.RBRACKET);
+        this.expect(TokenType.OF);
+        const elementType = this.parseDataTypeToken(
+          `array field '${typeName}.${fieldNameTok.value}'`,
+          fieldNameTok.line,
+        );
+        fields.push({
+          name: fieldNameTok.value,
+          dataType: elementType.value,
+          dimensions,
+        });
+      } else {
+        const fieldTypeTok = this.parseDataTypeToken(
+          `field '${typeName}.${fieldNameTok.value}'`,
+          fieldNameTok.line,
+        );
+        fields.push({ name: fieldNameTok.value, dataType: fieldTypeTok.value });
+      }
     }
     this.expect(TokenType.ENDTYPE);
     return { type: 'TypeDeclaration', name: typeName, kind: 'record', fields, line: startTok.line };
@@ -731,6 +762,12 @@ export class Parser {
     while (this.match(TokenType.DOT)) {
       const field = this.expect(TokenType.IDENTIFIER);
       target = { type: 'FieldAccess', record: target, field: field.value, line: field.line };
+      if (this.match(TokenType.LBRACKET)) {
+        const indices: ASTNode[] = [this.parseExpressionSimple()];
+        while (this.match(TokenType.COMMA)) indices.push(this.parseExpressionSimple());
+        this.expect(TokenType.RBRACKET);
+        target = { type: 'ArrayFieldAccess', array: target, indices, line: field.line };
+      }
     }
     return { type: 'InputStatement', target, line: input.line };
   }
@@ -1085,20 +1122,38 @@ export class Parser {
     return { type: 'FunctionDeclaration', name: name.value, params, returnType: returnType.value.toUpperCase(), body };
   }
 
-  // ─── CALL — IGCSE 规范: CALL ProcedureName 或 CALL ProcedureName(args) ───
+  // ─── CALL — A-Level: CALL ProcedureName(args) / CALL Object.Method(args) ───
   private parseCall(): ASTNode {
     const tok = this.expect(TokenType.CALL);
     const name = this.expect(TokenType.IDENTIFIER);
+    let object: ASTNode | null = null;
+    let callableName = name.value;
+    if (this.match(TokenType.DOT)) {
+      object = { type: 'Identifier', name: name.value };
+      const method = this.peek().type === TokenType.NEW
+        ? this.advance()
+        : this.expect(TokenType.IDENTIFIER);
+      if (method.type === TokenType.NEW) {
+        throw new Error(
+          `Constructor '${name.value}.NEW' cannot be called directly at line ${method.line}. ` +
+          `Create the object with '${name.value} <- NEW ClassName(...)'`,
+        );
+      }
+      callableName = method.value;
+    }
     const args: ASTNode[] = [];
     if (this.peek().type !== TokenType.LPAREN) {
-      throw new Error(`CALL '${name.value}' requires parentheses, including empty '()', at line ${name.line}`);
+      throw new Error(`CALL '${object ? `${name.value}.${callableName}` : callableName}' requires parentheses, including empty '()', at line ${name.line}`);
     }
     this.expect(TokenType.LPAREN);
     while (!this.match(TokenType.RPAREN)) {
       args.push(this.parseExpressionSimple());
       if (!this.match(TokenType.COMMA)) { if (this.peek().type !== TokenType.RPAREN) break; }
     }
-    return { type: 'ProcedureCall', name: name.value, args, line: tok.line };
+    if (object) {
+      return { type: 'MethodCall', object, method: callableName, args, calledWithCall: true, line: tok.line };
+    }
+    return { type: 'ProcedureCall', name: callableName, args, line: tok.line };
   }
 
   // ─── 文件操作 — IGCSE 规范: OPENFILE filename FOR READ/WRITE ───
@@ -1201,6 +1256,12 @@ export class Parser {
       while (this.match(TokenType.DOT)) {
         const fieldName = this.expect(TokenType.IDENTIFIER);
         target = { type: 'FieldAccess', record: target, field: fieldName.value, line: fieldName.line };
+        if (this.match(TokenType.LBRACKET)) {
+          const fieldIndices: ASTNode[] = [this.parseExpression()];
+          while (this.match(TokenType.COMMA)) fieldIndices.push(this.parseExpression());
+          this.expect(TokenType.RBRACKET);
+          target = { type: 'ArrayFieldAccess', array: target, indices: fieldIndices, line: fieldName.line };
+        }
       }
       this.expect(TokenType.ASSIGN);
       const value = this.parseExpression();
@@ -1224,9 +1285,21 @@ export class Parser {
         return { type: 'MethodCall', object: { type: 'Identifier', name: name.value }, method: memberTok.value, args, line: name.line };
       }
       let target: ASTNode = { type: 'FieldAccess', record: { type: 'Identifier', name: name.value }, field: memberTok.value, line: memberTok.line };
+      if (this.match(TokenType.LBRACKET)) {
+        const indices: ASTNode[] = [this.parseExpression()];
+        while (this.match(TokenType.COMMA)) indices.push(this.parseExpression());
+        this.expect(TokenType.RBRACKET);
+        target = { type: 'ArrayFieldAccess', array: target, indices, line: memberTok.line };
+      }
       while (this.match(TokenType.DOT)) {
         const fieldName = this.expect(TokenType.IDENTIFIER);
         target = { type: 'FieldAccess', record: target, field: fieldName.value, line: fieldName.line };
+        if (this.match(TokenType.LBRACKET)) {
+          const indices: ASTNode[] = [this.parseExpression()];
+          while (this.match(TokenType.COMMA)) indices.push(this.parseExpression());
+          this.expect(TokenType.RBRACKET);
+          target = { type: 'ArrayFieldAccess', array: target, indices, line: fieldName.line };
+        }
       }
       this.expect(TokenType.ASSIGN);
       const value = this.parseExpression();
@@ -1477,6 +1550,12 @@ export class Parser {
         while (this.match(TokenType.DOT)) {
           const fieldName = this.expect(TokenType.IDENTIFIER);
           expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+          if (this.match(TokenType.LBRACKET)) {
+            const fieldIndices: ASTNode[] = [this.parseExpressionSimple()];
+            while (this.match(TokenType.COMMA)) fieldIndices.push(this.parseExpressionSimple());
+            this.expect(TokenType.RBRACKET);
+            expr = { type: 'ArrayFieldAccess', array: expr, indices: fieldIndices, line: fieldName.line };
+          }
         }
         return expr;
       }
@@ -1505,6 +1584,12 @@ export class Parser {
           expr = { type: 'MethodCall', object: expr, method: fieldName.value, args, line: fieldName.line };
         } else {
           expr = { type: 'FieldAccess', record: expr, field: fieldName.value, line: fieldName.line };
+          if (this.match(TokenType.LBRACKET)) {
+            const indices: ASTNode[] = [this.parseExpressionSimple()];
+            while (this.match(TokenType.COMMA)) indices.push(this.parseExpressionSimple());
+            this.expect(TokenType.RBRACKET);
+            expr = { type: 'ArrayFieldAccess', array: expr, indices, line: fieldName.line };
+          }
         }
       }
       return expr;
@@ -1570,7 +1655,7 @@ export class Interpreter {
   private variableTypes = new CaseInsensitiveMap<string>();
 
   // 用户自定义类型存储
-  private typeDefinitions = new CaseInsensitiveMap<{ kind: 'enum' | 'pointer' | 'record' | 'set'; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }>();
+  private typeDefinitions = new CaseInsensitiveMap<{ kind: 'enum' | 'pointer' | 'record' | 'set'; values?: string[]; baseType?: string; fields?: RecordFieldDefinition[] }>();
   // 指针变量存储: pointerName -> targetVariableName
   private pointerVariables = new CaseInsensitiveMap<string>();
   // 集合定义存储: setName -> { values: string[], setType: string }
@@ -1600,7 +1685,7 @@ export class Interpreter {
   getTraceTable(): TraceEntry[] { return this.traceTable; }
   getVariables(): Map<string, unknown> { return this.variables; }
   getVariableTypes(): Map<string, string> { return this.variableTypes; }
-  getTypeDefinitions(): Map<string, { kind: string; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }> { return this.typeDefinitions; }
+  getTypeDefinitions(): Map<string, { kind: string; values?: string[]; baseType?: string; fields?: RecordFieldDefinition[] }> { return this.typeDefinitions; }
   getSetDefinitions(): Map<string, { values: string[]; setType: string }> { return this.setDefinitions; }
   getPointerVariables(): Map<string, string> { return this.pointerVariables; }
   getArrays(): Map<string, { dims: { lower: number; upper: number }[]; data: unknown[] }> { return this.arrays; }
@@ -1619,7 +1704,9 @@ export class Interpreter {
     if (typeDef && typeDef.kind === 'record' && typeDef.fields) {
       const record: Record<string, unknown> = {};
       for (const field of typeDef.fields) {
-        record[field.name] = this.getDefaultValue(field.dataType);
+        record[field.name] = field.dimensions
+          ? this.createRuntimeArray(field.dimensions, field.dataType, `record field '${field.name}'`)
+          : this.getDefaultValue(field.dataType);
       }
       return record;
     }
@@ -1638,6 +1725,25 @@ export class Interpreter {
     // 用户自定义类型，直接用类型名
     if (this.typeDefinitions.has(dataType)) return dataType;
     return dataType;
+  }
+
+  private createRuntimeArray(
+    dimensions: ArrayDimension[],
+    elementType: string,
+    context: string,
+  ): RuntimeArrayValue {
+    const dims = this.resolveArrayDimensions(dimensions, context);
+    const totalSize = dims.reduce(
+      (size, dimension) => size * (dimension.upper - dimension.lower + 1),
+      1,
+    );
+    const defaultValue = this.getDefaultValue(elementType);
+    return {
+      __arrayValue: true,
+      dims,
+      data: Array.from({ length: totalSize }, () => this.deepClone(defaultValue)),
+      elementType: this.getTypeString(elementType),
+    };
   }
 
   private isKnownType(dataType: string): boolean {
@@ -1811,7 +1917,7 @@ export class Interpreter {
     this.recordTrace(node.line || 0);
   }
 
-  private findTypeDefinition(typeName: string): { kind: 'enum' | 'pointer' | 'record' | 'set'; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] } | null {
+  private findTypeDefinition(typeName: string): { kind: 'enum' | 'pointer' | 'record' | 'set'; values?: string[]; baseType?: string; fields?: RecordFieldDefinition[] } | null {
     return this.typeDefinitions.get(typeName) ?? null;
   }
 
@@ -1899,6 +2005,12 @@ export class Interpreter {
     if (target.type === 'FieldAccess') {
       // rec.field <- value
       await this.executeFieldAccessAssignment(target, value, expressionType);
+      this.recordTrace(node.line || 0);
+      return;
+    }
+
+    if (target.type === 'ArrayFieldAccess') {
+      await this.executeArrayFieldAssignment(target, value, expressionType);
       this.recordTrace(node.line || 0);
       return;
     }
@@ -2027,6 +2139,51 @@ export class Interpreter {
     commit();
   }
 
+  private isRuntimeArrayValue(value: unknown): value is RuntimeArrayValue {
+    return typeof value === 'object' &&
+      value !== null &&
+      (value as Partial<RuntimeArrayValue>).__arrayValue === true &&
+      Array.isArray((value as Partial<RuntimeArrayValue>).dims) &&
+      Array.isArray((value as Partial<RuntimeArrayValue>).data);
+  }
+
+  private async getArrayFieldLocation(node: any): Promise<{
+    array: RuntimeArrayValue;
+    flatIndex: number;
+  }> {
+    const arrayValue = await this.evaluateExpression(node.array);
+    if (!this.isRuntimeArrayValue(arrayValue)) {
+      this.runtimeError('Indexed field is not an array');
+    }
+    const indices: number[] = [];
+    for (const index of node.indices as ASTNode[]) {
+      const value = await this.evaluateExpression(index);
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        this.runtimeError(`Array index must be INTEGER, got ${this.inferType(value)}`);
+      }
+      indices.push(value);
+    }
+    return {
+      array: arrayValue,
+      flatIndex: this.getFlatIndex(arrayValue.dims, indices),
+    };
+  }
+
+  private async executeArrayFieldAssignment(
+    target: any,
+    value: unknown,
+    expressionType?: string,
+  ): Promise<void> {
+    const { array, flatIndex } = await this.getArrayFieldLocation(target);
+    const valueType = expressionType ?? this.inferType(value);
+    if (!this.isTypeCompatible(array.elementType, valueType, value)) {
+      this.runtimeError(
+        `Type mismatch: cannot assign ${valueType} value to array field element (expected ${array.elementType})`,
+      );
+    }
+    array.data[flatIndex] = this.deepClone(value);
+  }
+
   private executeTypeDeclaration(node: any): void {
     const { name, kind, values, baseType, fields } = node;
     if (this.isGlobalNameDeclared(name)) this.runtimeError(`Identifier '${name}' is already declared`);
@@ -2043,7 +2200,7 @@ export class Interpreter {
     }
     if (kind === 'record') {
       const seen = new Set<string>();
-      for (const field of fields as { name: string; dataType: string }[]) {
+      for (const field of fields as RecordFieldDefinition[]) {
         const normalized = field.name.toUpperCase();
         if (seen.has(normalized)) this.runtimeError(`Duplicate field '${field.name}' in record type '${name}'`);
         seen.add(normalized);
@@ -2145,6 +2302,12 @@ export class Interpreter {
     if (!className) this.runtimeError(`Cannot determine object class for method '${node.method}'`);
     const found = this.findMethod(className, node.method);
     if (!found) this.runtimeError(`Class '${className}' has no method '${node.method}'`);
+    if (found.method.type === 'ProcedureDeclaration' && !node.calledWithCall) {
+      this.runtimeError(`Procedure method '${node.method}' must be called with CALL`);
+    }
+    if (found.method.type === 'FunctionDeclaration' && node.calledWithCall) {
+      this.runtimeError(`Function method '${node.method}' cannot be called with CALL`);
+    }
     if (found.method.visibility === 'private' && this.currentThis !== objectValue) {
       this.runtimeError(`Cannot call private method '${node.method}' of class '${className}'`);
     }
@@ -2270,6 +2433,10 @@ export class Interpreter {
           (this.constants.has(node.name) ? this.inferType(this.constants.get(node.name)) : this.inferType(evaluatedValue));
       case 'ArrayAccess':
         return this.variableTypes.get(node.name)?.replace(/^ARRAY_OF_/, '') ?? this.inferType(evaluatedValue);
+      case 'ArrayFieldAccess': {
+        const arrayType = this.getExpressionType(node.array);
+        return arrayType.replace(/^ARRAY_OF_/, '');
+      }
       case 'PointerDereference': {
         const pointerType = this.variableTypes.get(node.name);
         return pointerType ? this.typeDefinitions.get(pointerType)?.baseType ?? 'UNKNOWN' : 'UNKNOWN';
@@ -2304,7 +2471,7 @@ export class Interpreter {
         const recordType = this.getExpressionType(node.record);
         const field = this.typeDefinitions.get(recordType)?.fields
           ?.find(item => item.name.toUpperCase() === String(node.field).toUpperCase());
-        if (field) return field.dataType;
+        if (field) return field.dimensions ? `ARRAY_OF_${field.dataType}` : field.dataType;
         const classField = this.classDefinitions.get(recordType)?.fields
           ?.find((item: any) => String(item.name).toUpperCase() === String(node.field).toUpperCase());
         return classField?.dataType ?? this.inferType(evaluatedValue);
@@ -2400,6 +2567,9 @@ export class Interpreter {
   private getInputTargetType(target: any): string | undefined {
     if (target.type === 'Identifier') return this.variableTypes.get(target.name);
     if (target.type === 'ArrayAccess') return this.variableTypes.get(target.name)?.replace(/^ARRAY_OF_/, '');
+    if (target.type === 'ArrayFieldAccess') {
+      return this.getExpressionType(target.array).replace(/^ARRAY_OF_/, '');
+    }
     if (target.type === 'FieldAccess') {
       let root = target.record;
       while (root.type === 'FieldAccess') root = root.record;
@@ -2430,6 +2600,10 @@ export class Interpreter {
     }
     if (target.type === 'FieldAccess') {
       await this.executeFieldAccessAssignment(target, value, valueType);
+      return;
+    }
+    if (target.type === 'ArrayFieldAccess') {
+      await this.executeArrayFieldAssignment(target, value, valueType);
       return;
     }
     this.runtimeError('Invalid INPUT target');
@@ -3179,6 +3353,10 @@ export class Interpreter {
         }
         return null;
       }
+      case 'ArrayFieldAccess': {
+        const { array, flatIndex } = await this.getArrayFieldLocation(node);
+        return array.data[flatIndex];
+      }
       case 'FieldAccess': return this.evaluateFieldAccess(node);
       case 'PointerDereference': {
         const targetVarName = this.pointerVariables.get(node.name);
@@ -3418,7 +3596,7 @@ export class ALevelParser {
   public getArrays(): Record<string, { dims: { lower: number; upper: number }[]; data: unknown[] }> {
     return Object.fromEntries(this.interpreter.getArrays());
   }
-  public getTypeDefinitions(): Record<string, { kind: string; values?: string[]; baseType?: string; fields?: { name: string; dataType: string }[] }> {
+  public getTypeDefinitions(): Record<string, { kind: string; values?: string[]; baseType?: string; fields?: RecordFieldDefinition[] }> {
     return Object.fromEntries(this.interpreter.getTypeDefinitions());
   }
   public getSetDefinitions(): Record<string, { values: string[]; setType: string }> {

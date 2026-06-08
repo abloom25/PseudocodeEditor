@@ -113,6 +113,35 @@ Left <- Right
 `, /dimensions do not match/i);
 });
 
+test('record array fields enforce element types and bounds', async () => {
+  await expectRunError(`
+TYPE Student
+  DECLARE Scores : ARRAY[1:5] OF INTEGER
+ENDTYPE
+DECLARE Item : Student
+Item.Scores[1] <- "invalid"
+`, /type mismatch/i);
+
+  await expectRunError(`
+TYPE Student
+  DECLARE Scores : ARRAY[1:5] OF INTEGER
+ENDTYPE
+DECLARE Item : Student
+Item.Scores[6] <- 10
+`, /bounds|index/i);
+});
+
+test('constructors require NEW assignment rather than direct CALL', async () => {
+  await expectRunError(`
+CLASS Person
+  PUBLIC PROCEDURE NEW()
+  ENDPROCEDURE
+ENDCLASS
+DECLARE Item : Person
+CALL Item.NEW()
+`, /cannot be called directly|NEW ClassName/i);
+});
+
 test('nested record fields preserve types and reject missing fields', async () => {
   const parser = new ALevelParser();
   const output = await parser.run(`
