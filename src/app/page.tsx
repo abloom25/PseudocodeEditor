@@ -11,6 +11,7 @@ import { registerPseudocodeLanguage, registerPseudocodeProviders, registerPseudo
 import type { DesktopLayout, Syllabus } from '@/features/pseudocode-ide/types';
 import { type ThemeName } from '@/features/pseudocode-ide/config/theme-styles';
 import { useTheme } from 'next-themes';
+import * as Sentry from '@sentry/nextjs';
 
 import Editor, { type OnMount } from '@monaco-editor/react';
 /* eslint-disable */
@@ -64,6 +65,11 @@ export default function PseudocodePage() {
   const [showBugDialog, setShowBugDialog] = useState(false);
   const [bugDescription, setBugDescription] = useState('');
   const [bugCopied, setBugCopied] = useState(false);
+  const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [bugSubmitResult, setBugSubmitResult] = useState<{
+    status: 'success' | 'error';
+    eventId?: string;
+  } | null>(null);
   const setSyllabus = useCallback((value: 'igcse-0478' | 'alevel-9618') => {
     setSyllabusState(value);
     localStorage.setItem('pseudocode-ide-syllabus', value);
@@ -313,8 +319,11 @@ export default function PseudocodePage() {
       code: code || null,
       output: output && output.length > 0 ? output : null,
       error: error || null,
+      diagnostic: errorDiagnostic,
       ast,
       traceTable,
+      variables: Object.keys(finalVariables).length > 0 ? finalVariables : null,
+      variableTypes: Object.keys(finalVariableTypes).length > 0 ? finalVariableTypes : null,
       files,
       description: bugDescription.trim() || null,
     };
@@ -325,7 +334,88 @@ export default function PseudocodePage() {
     }
 
     return JSON.stringify(report, null, 2);
-  }, [syllabus, currentTheme, desktopLayout, locale, output, error, bugDescription]);
+  }, [
+    syllabus,
+    currentTheme,
+    desktopLayout,
+    locale,
+    output,
+    error,
+    errorDiagnostic,
+    finalVariables,
+    finalVariableTypes,
+    bugDescription,
+  ]);
+
+  const submitBugReport = useCallback(async () => {
+    setBugSubmitting(true);
+    setBugSubmitResult(null);
+
+    try {
+      if (!Sentry.getClient()) {
+        throw new Error('Sentry is not enabled in this environment');
+      }
+
+      const report = generateBugReport();
+      const reportData = JSON.parse(report) as Record<string, unknown>;
+      const feedbackMessage = bugDescription.trim() || t('noAdditionalDescription');
+      const eventId = Sentry.withScope(scope => {
+        scope.setLevel('error');
+        scope.setTag('report.source', 'pseudocode-editor');
+        scope.setTag('report.kind', errorDiagnostic ? 'interpreter-error' : 'user-feedback');
+        scope.setTag('syllabus', syllabus);
+        scope.setTag('locale', locale);
+        scope.setContext('pseudocode_report', {
+          description: feedbackMessage,
+          diagnostic: errorDiagnostic,
+          environment: reportData.environment,
+          outputLines: output.length,
+          virtualFileCount: Object.keys(virtualFiles).length,
+        });
+        scope.addAttachment({
+          filename: `pseudocode-bug-report-${Date.now()}.json`,
+          contentType: 'application/json',
+          data: report,
+        });
+
+        const title = errorDiagnostic
+          ? `User-reported interpreter issue: ${errorDiagnostic.code}`
+          : 'User-reported Pseudocode Editor issue';
+        return Sentry.captureException(new Error(title));
+      });
+
+      Sentry.captureFeedback({
+        message: feedbackMessage,
+        associatedEventId: eventId,
+        source: 'pseudocode-editor',
+        url: window.location.href,
+        tags: {
+          syllabus,
+          locale,
+          diagnostic_code: errorDiagnostic?.code ?? 'none',
+        },
+      });
+
+      const flushed = await Sentry.flush(10_000);
+      if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
+
+      setBugSubmitResult({ status: 'success', eventId });
+    } catch (submissionError) {
+      console.error('Failed to submit bug report:', submissionError);
+      setBugSubmitResult({ status: 'error' });
+    } finally {
+      setBugSubmitting(false);
+    }
+  }, [
+    bugDescription,
+    errorDiagnostic,
+    generateBugReport,
+    locale,
+    output.length,
+    syllabus,
+    t,
+    virtualFiles,
+  ]);
 
   const copyBugReport = useCallback(async () => {
     const report = generateBugReport();
@@ -859,7 +949,12 @@ export default function PseudocodePage() {
           variant="ghost"
           size="sm"
           className={`${styles.buttonText} ${styles.buttonHover}`}
-          onClick={() => { setBugDescription(''); setBugCopied(false); setShowBugDialog(true); }}
+          onClick={() => {
+            setBugDescription('');
+            setBugCopied(false);
+            setBugSubmitResult(null);
+            setShowBugDialog(true);
+          }}
           title={t('reportBug')}
         >
           <MessageCircleWarning className="w-4 h-4 mr-0 md:mr-1" />
@@ -1596,7 +1691,10 @@ export default function PseudocodePage() {
             <label className={`text-sm font-medium mb-1.5 block ${styles.headerText}`}>{t('whatWentWrong')}</label>
             <Textarea
               value={bugDescription}
-              onChange={(e) => setBugDescription(e.target.value)}
+              onChange={(e) => {
+                setBugDescription(e.target.value);
+                setBugSubmitResult(null);
+              }}
               placeholder={t('bugPlaceholder')}
               rows={4}
               className={`resize-none ${styles.headerBg} ${styles.outputLineBorder} ${styles.headerText} placeholder:text-current placeholder:opacity-50`}
@@ -1617,12 +1715,27 @@ export default function PseudocodePage() {
               )}
               <li>{t('environmentInfo')}</li>
             </ul>
+            <p className="pt-1">{t('sentryUploadNotice')}</p>
           </div>
           <div className={`text-xs rounded-md p-3 max-h-40 overflow-auto font-mono border ${styles.headerBg} ${styles.headerText} ${styles.outputLineBorder}`}>
             <pre className="whitespace-pre-wrap break-all">{generateBugReport().slice(0, 800)}{generateBugReport().length > 800 ? `\n${t('truncatedPreview')}` : ''}</pre>
           </div>
+          {bugSubmitResult && (
+            <p
+              role="status"
+              className={`text-sm ${
+                bugSubmitResult.status === 'success'
+                  ? styles.outputSuccessText
+                  : styles.outputErrorText
+              }`}
+            >
+              {bugSubmitResult.status === 'success'
+                ? t('reportSubmitted', { eventId: bugSubmitResult.eventId ?? 'unknown' })
+                : t('reportSubmitFailed')}
+            </p>
+          )}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex flex-wrap gap-2 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -1633,12 +1746,22 @@ export default function PseudocodePage() {
             {t('download')}
           </Button>
           <Button
+            variant="outline"
             size="sm"
             onClick={copyBugReport}
-            className={bugCopied ? 'bg-green-600 hover:bg-green-700 text-white' : `${styles.runBtnBg} ${styles.runBtnHover} ${styles.runBtnText}`}
+            className={bugCopied ? 'bg-green-600 hover:bg-green-700 text-white' : `${styles.buttonText} ${styles.buttonHover} ${styles.outputLineBorder}`}
           >
             {bugCopied ? <Check className="w-4 h-4 mr-1.5" /> : <Copy className="w-4 h-4 mr-1.5" />}
             {bugCopied ? t('copied') : t('copyClipboard')}
+          </Button>
+          <Button
+            size="sm"
+            onClick={submitBugReport}
+            disabled={bugSubmitting}
+            className={`${styles.runBtnBg} ${styles.runBtnHover} ${styles.runBtnText}`}
+          >
+            <MessageCircleWarning className="w-4 h-4 mr-1.5" />
+            {bugSubmitting ? t('submittingReport') : t('submitReport')}
           </Button>
         </div>
       </DialogContent>

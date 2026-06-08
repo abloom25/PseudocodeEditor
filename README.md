@@ -195,6 +195,12 @@ The project is configured for static export and GitHub Pages deployment.
 
 A push to the `main` branch triggers the GitHub Actions workflow and deploys the generated `out` directory to GitHub Pages.
 
+### Sentry Source Maps
+
+Production builds upload browser source maps to the `nightlightai/pseudocode-editor` Sentry project. Add an organization token with the `org:ci` permission as a GitHub Actions repository secret named `SENTRY_AUTH_TOKEN`.
+
+The token is used only during the build and must not be added to source files or committed environment files.
+
 ## Development Notes
 
 - Use pnpm for all dependency operations.

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, BarChart3, Cookie, Database, Languages, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bug, Cookie, Database, Languages, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
 import { localeNames, supportedLocales } from '@/lib/i18n';
 
@@ -9,6 +9,7 @@ const sections = [
   ['noCookiesHeading', 'noCookiesText', Cookie],
   ['localStorageHeading', 'localStorageText', Database],
   ['analyticsHeading', 'analyticsText', BarChart3],
+  ['errorMonitoringHeading', 'errorMonitoringText', Bug],
   ['dataControlHeading', 'dataControlText', ShieldCheck],
 ] as const;
 

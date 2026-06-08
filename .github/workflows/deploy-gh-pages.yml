@@ -42,6 +42,9 @@ jobs:
         run: pnpm next build
         env:
           GITHUB_PAGES: 'true'
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: nightlightai
+          SENTRY_PROJECT: pseudocode-editor
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
