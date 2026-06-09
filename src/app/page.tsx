@@ -13,7 +13,7 @@ import { type ThemeName } from '@/features/pseudocode-ide/config/theme-styles';
 import { useTheme } from 'next-themes';
 import * as Sentry from '@sentry/nextjs';
 
-import Editor, { type OnMount } from '@monaco-editor/react';
+import Editor, { loader, type OnMount } from '@monaco-editor/react';
 /* eslint-disable */
 import type { editor as MonacoEditor, languages as MonacoLanguages } from 'monaco-editor';
 type MonacoType = any;
@@ -45,6 +45,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+
+loader.config({ paths: { vs: '/monaco/vs' } });
 
 
 export default function PseudocodePage() {

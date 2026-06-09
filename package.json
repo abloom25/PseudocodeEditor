@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
-    "dev": "next dev",
+    "build": "pnpm copy-monaco-assets && next build",
+    "copy-monaco-assets": "node scripts/copy-monaco-assets.mjs",
+    "dev": "pnpm copy-monaco-assets && next dev",
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "start": "next start",

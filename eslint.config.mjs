@@ -29,6 +29,7 @@ const eslintConfig = defineConfig([
     // Build artifacts:
     'server.js',
     'dist/**',
+    'public/monaco/**',
     // Script files (CommonJS):
     'scripts/**/*.js',
   ]),
