@@ -17,7 +17,7 @@ Sentry.init({
     }),
     Sentry.replayIntegration(),
   ],
-  tracesSampleRate: 1,
+  tracesSampleRate: 0.1,
   tracePropagationTargets: [
     'localhost',
     /^https:\/\/pseudocode\.site(?:\/|$)/,

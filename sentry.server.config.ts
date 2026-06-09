@@ -10,7 +10,7 @@ Sentry.init({
       levels: ['log', 'warn', 'error'],
     }),
   ],
-  tracesSampleRate: 1,
+  tracesSampleRate: 0.1,
   enableMetrics: true,
   enableLogs: true,
 });
