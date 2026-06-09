@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowLeft, BarChart3, Bug, Cookie, Database, Languages, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
+import { useAnalyticsConsent } from '@/hooks/useAnalyticsConsent';
 import { localeNames, supportedLocales } from '@/lib/i18n';
 
 const sections = [
@@ -15,6 +16,14 @@ const sections = [
 
 export function PrivacyPageContent() {
   const { locale, setLocale, t } = useLanguage();
+  const { consent, ready, setConsent } = useAnalyticsConsent();
+  const consentStatus = !ready
+    ? t('analyticsConsentLoading')
+    : consent === 'granted'
+      ? t('analyticsConsentGranted')
+      : consent === 'denied'
+        ? t('analyticsConsentDenied')
+        : t('analyticsConsentNotChosen');
 
   return (
     <main className="min-h-screen overflow-auto bg-[#050914] px-4 py-6 text-[#DCE7FF] sm:px-6 lg:px-8">
@@ -70,6 +79,40 @@ export function PrivacyPageContent() {
               </section>
             ))}
           </div>
+
+          <section className="mt-4 rounded-xl border border-[#22365F] bg-[#0A1020] p-5">
+            <ShieldCheck className="h-5 w-5 text-[#8ED0FF]" aria-hidden="true" />
+            <h2 className="mt-4 text-base font-semibold text-white">
+              {t('manageAnalyticsConsent')}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#8FA3CC]">
+              {t('manageAnalyticsConsentText')}
+            </p>
+            <p
+              className="mt-3 text-xs font-medium text-[#B8C8E8]"
+              aria-live="polite"
+            >
+              {t('analyticsConsentStatus', { status: consentStatus })}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setConsent('granted')}
+                aria-pressed={consent === 'granted'}
+                className="rounded-md bg-[#2B4D91] px-3 py-2 text-xs font-medium text-white hover:bg-[#3B67BD]"
+              >
+                {t('allowAnalytics')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConsent('denied')}
+                aria-pressed={consent === 'denied'}
+                className="rounded-md border border-[#30466F] bg-[#101A30] px-3 py-2 text-xs font-medium text-[#DCE7FF] hover:bg-[#162342]"
+              >
+                {t('rejectAnalytics')}
+              </button>
+            </div>
+          </section>
 
           <p className="mt-8 text-xs leading-5 text-[#6D7FA8]">{t('privacyUpdated')}</p>
         </div>

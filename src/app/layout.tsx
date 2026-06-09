@@ -5,6 +5,10 @@ import { ThemeProvider } from 'next-themes';
 import { LanguageProvider } from '@/components/LanguageProvider';
 import { PrivacyNotice } from '@/components/PrivacyNotice';
 import { PWARegister } from '@/components/PWARegister';
+import {
+  GOOGLE_ANALYTICS_ID,
+  createGoogleConsentInitializationScript,
+} from '@/lib/analytics-consent';
 import './globals.css';
 
 const siteUrl = 'https://pseudocode.site';
@@ -154,6 +158,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const isDev = process.env.COZE_PROJECT_ENV === 'DEV';
+  const isProduction = process.env.NODE_ENV === 'production';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -161,6 +166,14 @@ export default function RootLayout({
         suppressHydrationWarning
         className="antialiased h-screen overflow-hidden"
       >
+        {isProduction && (
+          <script
+            id="google-consent-initialization"
+            dangerouslySetInnerHTML={{
+              __html: createGoogleConsentInitializationScript(),
+            }}
+          />
+        )}
         <LanguageProvider>
           <ThemeProvider
             attribute="data-theme"
@@ -177,6 +190,13 @@ export default function RootLayout({
             {children}
             <PrivacyNotice />
             <PWARegister />
+            {isProduction && (
+              <Script
+                id="google-analytics"
+                src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
+                strategy="afterInteractive"
+              />
+            )}
             <Script
               src="https://cloud.umami.is/script.js"
               data-website-id={umamiWebsiteId}

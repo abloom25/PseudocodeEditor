@@ -2,33 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShieldCheck, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageProvider';
+import { useAnalyticsConsent } from '@/hooks/useAnalyticsConsent';
 
 export function PrivacyNotice() {
   const { t } = useLanguage();
   const pathname = usePathname();
-  const [visible, setVisible] = useState(false);
+  const { consent, ready, setConsent } = useAnalyticsConsent();
 
-  useEffect(() => {
-    try {
-      setVisible(localStorage.getItem('pseudocode-privacy-notice') !== 'dismissed');
-    } catch {
-      setVisible(true);
-    }
-  }, []);
-
-  const dismiss = () => {
-    setVisible(false);
-    try {
-      localStorage.setItem('pseudocode-privacy-notice', 'dismissed');
-    } catch {
-      // Dismiss for this page view when storage is unavailable.
-    }
-  };
-
-  if (!visible || pathname.startsWith('/privacy')) return null;
+  if (!ready || consent !== null || pathname.startsWith('/privacy')) return null;
 
   return (
     <aside
@@ -40,27 +23,26 @@ export function PrivacyNotice() {
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold">{t('privacyTitle')}</h2>
           <p className="mt-1 text-xs leading-5 text-[#8FA3CC]">{t('privacySummary')}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setConsent('granted')}
+              className="rounded-md bg-[#2B4D91] px-3 py-1.5 font-medium text-white hover:bg-[#3B67BD]"
+            >
+              {t('allowAnalytics')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConsent('denied')}
+              className="rounded-md border border-[#30466F] bg-[#101A30] px-3 py-1.5 font-medium text-[#DCE7FF] hover:bg-[#162342]"
+            >
+              {t('rejectAnalytics')}
+            </button>
             <Link href="/privacy/" className="font-medium text-[#8ED0FF] hover:text-white">
               {t('privacyDetails')}
             </Link>
-            <button
-              type="button"
-              onClick={dismiss}
-              className="rounded-md bg-[#2B4D91] px-3 py-1.5 font-medium text-white hover:bg-[#3B67BD]"
-            >
-              {t('dismiss')}
-            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label={t('dismiss')}
-          className="h-7 w-7 shrink-0 rounded-md p-1 text-[#6D7FA8] hover:bg-[#162342] hover:text-white"
-        >
-          <X className="h-5 w-5" />
-        </button>
       </div>
     </aside>
   );
