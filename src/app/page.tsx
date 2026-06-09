@@ -242,6 +242,12 @@ export default function PseudocodePage() {
       const hash = await createShareHash({ code, syllabus });
       setShareUrl(`${window.location.origin}${window.location.pathname}${hash}`);
       setShowShareDialog(true);
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action: 'create_share_link',
+          syllabus,
+        },
+      });
     } catch {
       setShareUrl('');
       setShareError(true);
@@ -299,6 +305,14 @@ export default function PseudocodePage() {
       setExerciseUrl(
         `${window.location.origin}${window.location.pathname}${hash}`,
       );
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action: 'create_exercise_link',
+          syllabus,
+          syllabus_locked: exerciseLockSyllabus,
+          initial_file_count: Object.keys(initialFiles).length,
+        },
+      });
     } catch {
       setExerciseUrl('');
       setExerciseError('exerciseLinkFailed');
@@ -567,6 +581,14 @@ export default function PseudocodePage() {
         });
         const flushed = await Sentry.flush(10_000);
         if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
+        Sentry.metrics.count('user_action', 1, {
+          attributes: {
+            action: 'submit_feedback',
+            syllabus,
+            locale,
+            outcome: 'success',
+          },
+        });
         setBugSubmitResult({ status: 'success', eventId });
         return;
       }
@@ -613,9 +635,29 @@ export default function PseudocodePage() {
       const flushed = await Sentry.flush(10_000);
       if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
 
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action: 'submit_bug_report',
+          syllabus,
+          locale,
+          outcome: 'success',
+          has_diagnostic: Boolean(errorDiagnostic),
+        },
+      });
       setBugSubmitResult({ status: 'success', eventId });
     } catch (submissionError) {
       console.error('Failed to submit report:', submissionError);
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action:
+            reportType === 'feedback'
+              ? 'submit_feedback'
+              : 'submit_bug_report',
+          syllabus,
+          locale,
+          outcome: 'error',
+        },
+      });
       setBugSubmitResult({ status: 'error' });
     } finally {
       setBugSubmitting(false);
@@ -718,6 +760,7 @@ export default function PseudocodePage() {
   }, [locale]);
 
   const runCode = async () => {
+    const startedAt = performance.now();
     setIsRunning(true);
     setErrorDiagnostic(null);
     setOutput([]);
@@ -763,6 +806,26 @@ export default function PseudocodePage() {
       setFinalVariables(parser.current.getVariables());
       setFinalVariableTypes(parser.current.getVariableTypes());
       setArraysData(convertArraysData(parser.current.getArrays(), parser.current.getVariableTypes()));
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action: 'run_code',
+          syllabus,
+          outcome: 'success',
+          exercise_mode: Boolean(exercise),
+        },
+      });
+      Sentry.metrics.distribution(
+        'pseudocode_execution_time',
+        performance.now() - startedAt,
+        {
+          unit: 'millisecond',
+          attributes: {
+            syllabus,
+            outcome: 'success',
+            exercise_mode: Boolean(exercise),
+          },
+        },
+      );
     } catch (err) {
       const diagnosticError = normalizePseudocodeError(
         err instanceof Error ? err : new Error(t('unknownError')),
@@ -770,6 +833,27 @@ export default function PseudocodePage() {
       setErrorDiagnostic(diagnosticError.diagnostic);
       setParseSuccess(false);
       showEditorError(diagnosticError);
+      Sentry.metrics.count('user_action', 1, {
+        attributes: {
+          action: 'run_code',
+          syllabus,
+          outcome: 'error',
+          exercise_mode: Boolean(exercise),
+          diagnostic_code: diagnosticError.diagnostic.code,
+        },
+      });
+      Sentry.metrics.distribution(
+        'pseudocode_execution_time',
+        performance.now() - startedAt,
+        {
+          unit: 'millisecond',
+          attributes: {
+            syllabus,
+            outcome: 'error',
+            exercise_mode: Boolean(exercise),
+          },
+        },
+      );
     } finally {
       setIsRunning(false);
       setWaitingForInput(false);

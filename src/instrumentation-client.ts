@@ -11,8 +11,16 @@ Sentry.init({
   enabled: process.env.NODE_ENV === 'production',
   environment: process.env.NODE_ENV,
   sendDefaultPii: false,
+  integrations: [
+    Sentry.consoleLoggingIntegration({
+      levels: ['log', 'warn', 'error'],
+    }),
+    Sentry.replayIntegration(),
+  ],
   tracesSampleRate: 0,
-  enableLogs: false,
+  enableLogs: true,
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
   maxBreadcrumbs: 50,
   beforeSend(event) {
     if (event.request?.url) {
