@@ -17,7 +17,11 @@ Sentry.init({
     }),
     Sentry.replayIntegration(),
   ],
-  tracesSampleRate: 0.1,
+  tracesSampleRate: 1,
+  tracePropagationTargets: [
+    'localhost',
+    /^https:\/\/pseudocode\.site(?:\/|$)/,
+  ],
   enableMetrics: true,
   enableLogs: true,
   replaysSessionSampleRate: 0.1,
@@ -42,6 +46,10 @@ Sentry.init({
   },
 });
 
+Sentry.logger.info('Pseudocode Editor client initialized', {
+  page: window.location.pathname,
+  environment: process.env.NODE_ENV,
+});
 Sentry.metrics.count('app_session', 1, {
   attributes: {
     page: window.location.pathname,
@@ -49,5 +57,18 @@ Sentry.metrics.count('app_session', 1, {
   },
 });
 void Sentry.flush(5_000);
+
+const telemetryFlushInterval = window.setInterval(() => {
+  void Sentry.flush(5_000);
+}, 5_000);
+
+window.addEventListener(
+  'pagehide',
+  () => {
+    window.clearInterval(telemetryFlushInterval);
+    void Sentry.flush(5_000);
+  },
+  { once: true },
+);
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

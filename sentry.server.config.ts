@@ -5,7 +5,12 @@ Sentry.init({
   enabled: process.env.NODE_ENV === 'production',
   environment: process.env.NODE_ENV,
   sendDefaultPii: false,
-  tracesSampleRate: 0.1,
+  integrations: [
+    Sentry.consoleLoggingIntegration({
+      levels: ['log', 'warn', 'error'],
+    }),
+  ],
+  tracesSampleRate: 1,
   enableMetrics: true,
   enableLogs: true,
 });
