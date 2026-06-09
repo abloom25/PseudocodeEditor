@@ -9,6 +9,8 @@ import {
   tokenNamesZh,
 } from '@/locales/errors/zh';
 import type { Locale } from '@/lib/i18n';
+import { diagnosticExplanationsEn } from '@/locales/errors/explanations-en';
+import { diagnosticExplanationsZh } from '@/locales/errors/explanations-zh';
 
 export type DiagnosticValue = string | number;
 
@@ -250,4 +252,13 @@ export function formatDiagnostic(
     message = message.replaceAll(`{${name}}`, localizedDetail(value, locale));
   }
   return message.replace(/\s+\.$/, '.').trim();
+}
+
+export function getDiagnosticExplanation(
+  diagnostic: PseudocodeDiagnostic,
+  locale: Locale,
+) {
+  const explanations =
+    locale === 'zh' ? diagnosticExplanationsZh : diagnosticExplanationsEn;
+  return explanations[diagnostic.code];
 }

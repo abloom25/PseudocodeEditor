@@ -21,17 +21,20 @@ type MonacoType = any;
 import { PseudocodeParser, type TraceEntry } from '@/lib/pseudocode/parser';
 import { ALevelParser } from '@/lib/pseudocode/alevel-parser';
 import {
+  getDiagnosticExplanation,
   normalizePseudocodeError,
   type PseudocodeDiagnostic,
 } from '@/lib/pseudocode/diagnostics';
+import { createShareHash, readShareHash } from '@/lib/share-code';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning, MessageSquareText, Bug } from 'lucide-react';
+import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning, MessageSquareText, Bug, Link2, HelpCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 
 export default function PseudocodePage() {
@@ -63,6 +66,14 @@ export default function PseudocodePage() {
   const [syllabus, setSyllabusState] = useState<Syllabus>('igcse-0478');
   const [showSyllabusDialog, setShowSyllabusDialog] = useState(false);
   const [showBugDialog, setShowBugDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareError, setShareError] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const [startupNotice, setStartupNotice] = useState<
+    'shared' | 'share-error' | 'draft' | null
+  >(null);
   const [reportType, setReportType] = useState<'feedback' | 'bug'>('feedback');
   const [bugDescription, setBugDescription] = useState('');
   const [bugCopied, setBugCopied] = useState(false);
@@ -193,6 +204,31 @@ export default function PseudocodePage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCreateShareLink = async () => {
+    setShareError(false);
+    setShareCopied(false);
+    try {
+      const hash = await createShareHash({ code, syllabus });
+      setShareUrl(`${window.location.origin}${window.location.pathname}${hash}`);
+      setShowShareDialog(true);
+    } catch {
+      setShareUrl('');
+      setShareError(true);
+      setShowShareDialog(true);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setShareError(true);
+    }
+  };
+
   // 导入伪代码功能
   const handleImportCode = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -249,15 +285,61 @@ export default function PseudocodePage() {
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   useEffect(() => {
-    setMounted(true);
-    // Restore saved code from localStorage
-    try {
-      const saved = localStorage.getItem('pseudocode-editor-code');
-      if (saved) setCode(saved);
-    } catch {
-      // localStorage not available
-    }
+    let cancelled = false;
+
+    const restoreEditor = async () => {
+      try {
+        const shared = await readShareHash(window.location.hash);
+        if (cancelled) return;
+        if (shared) {
+          setCode(shared.code);
+          setSyllabusState(shared.syllabus);
+          setShowSyllabusDialog(false);
+          setStartupNotice('shared');
+          localStorage.setItem('pseudocode-ide-syllabus', shared.syllabus);
+          setMounted(true);
+          return;
+        }
+      } catch {
+        if (!cancelled) setStartupNotice('share-error');
+      }
+
+      try {
+        const draft = localStorage.getItem('pseudocode-editor-draft');
+        const saved = localStorage.getItem('pseudocode-editor-code');
+        if (draft) {
+          setCode(draft);
+          setStartupNotice('draft');
+        } else if (saved) {
+          setCode(saved);
+        }
+      } catch {
+        // Local restoration is optional when storage is unavailable.
+      }
+      if (!cancelled) setMounted(true);
+    };
+
+    void restoreEditor();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem('pseudocode-editor-draft', code);
+      } catch {
+        // Continue editing when storage is unavailable.
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [code, mounted]);
+
+  useEffect(() => {
+    setExplanationOpen(false);
+  }, [errorDiagnostic]);
 
   // 当主题变化时更新 Monaco 的主题
   const currentTheme = resolveThemeName(theme);
@@ -741,6 +823,17 @@ export default function PseudocodePage() {
   };
 
   const styles = getThemeStyles(currentTheme);
+  const diagnosticExplanation = errorDiagnostic
+    ? getDiagnosticExplanation(errorDiagnostic, locale)
+    : null;
+  const startupNoticeText =
+    startupNotice === 'shared'
+      ? t('sharedCodeLoaded')
+      : startupNotice === 'share-error'
+        ? t('sharedCodeLoadFailed')
+        : startupNotice === 'draft'
+          ? t('draftRestored')
+          : null;
 
   if (!mounted) {
     return (
@@ -777,6 +870,44 @@ export default function PseudocodePage() {
               <span className={`text-sm ${styles.outputDimText}`}>{t('alevelDescription')}</span>
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className={`sm:max-w-xl ${styles.outputBg} ${styles.outputBorder} ${styles.text}`}>
+          <DialogHeader>
+            <DialogTitle className={styles.headerText}>
+              {t('shareCodeTitle')}
+            </DialogTitle>
+            <DialogDescription className={styles.outputDimText}>
+              {t('shareCodeDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          {shareError ? (
+            <div className={`rounded-md border p-3 text-sm ${styles.outputLineBorder} ${styles.outputErrorText}`}>
+              {t('shareLinkFailed')}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Textarea
+                value={shareUrl}
+                readOnly
+                aria-label={t('shareCodeTitle')}
+                className={`min-h-28 resize-none font-mono text-xs ${styles.outputBg} ${styles.outputLineBorder}`}
+              />
+              <Button
+                type="button"
+                onClick={() => void handleCopyShareLink()}
+                className="bg-[#2B4D91] text-white hover:bg-[#3B67BD]"
+              >
+                {shareCopied ? (
+                  <Check className="mr-2 h-4 w-4" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                {shareCopied ? t('shareLinkCopied') : t('copyShareLink')}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <div 
@@ -854,6 +985,13 @@ export default function PseudocodePage() {
               >
                 <Download className="w-4 h-4 mr-2" />
                 {t('export')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => void handleCreateShareLink()}
+                className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
+              >
+                <Link2 className="w-4 h-4 mr-2" />
+                {t('share')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={resetCode}
@@ -1123,9 +1261,62 @@ export default function PseudocodePage() {
                   <div className={`px-4 py-2 border-b shrink-0 min-h-[36px] flex items-center justify-between ${styles.outputLineBorder}`}>
                     <div className="flex-1">
                       {error && (
-                        <div className={`flex items-center gap-2 text-sm ${styles.outputErrorText}`}>
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{error}</span>
+                        <Collapsible
+                          open={explanationOpen}
+                          onOpenChange={setExplanationOpen}
+                        >
+                          <div className={`flex items-start gap-2 text-sm ${styles.outputErrorText}`}>
+                            <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <span>{error}</span>
+                              {diagnosticExplanation && (
+                                <CollapsibleTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={`mt-1 flex items-center gap-1 text-xs font-medium ${styles.buttonText} hover:underline`}
+                                  >
+                                    <HelpCircle className="h-3.5 w-3.5" />
+                                    {t('explainError')}
+                                    <ChevronDown
+                                      className={`h-3.5 w-3.5 transition-transform ${explanationOpen ? 'rotate-180' : ''}`}
+                                    />
+                                  </button>
+                                </CollapsibleTrigger>
+                              )}
+                            </div>
+                          </div>
+                          {diagnosticExplanation && (
+                            <CollapsibleContent>
+                              <div className={`mt-3 grid gap-3 rounded-md border p-3 text-xs ${styles.outputLineBorder} ${styles.headerBg}`}>
+                                <div>
+                                  <p className={`font-semibold ${styles.headerText}`}>
+                                    {t('errorReason')}
+                                  </p>
+                                  <p className={`mt-1 leading-5 ${styles.outputDimText}`}>
+                                    {diagnosticExplanation.reason}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className={`font-semibold ${styles.headerText}`}>
+                                    {t('errorFix')}
+                                  </p>
+                                  <p className={`mt-1 leading-5 ${styles.outputDimText}`}>
+                                    {diagnosticExplanation.fix}
+                                  </p>
+                                </div>
+                              </div>
+                            </CollapsibleContent>
+                          )}
+                        </Collapsible>
+                      )}
+                      {!error && startupNoticeText && (
+                        <div className={`flex items-center gap-2 text-sm ${startupNotice === 'share-error' ? styles.outputErrorText : styles.outputSuccessText}`}>
+                          {startupNotice === 'share-error' ? (
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 shrink-0" />
+                          )}
+                          <span>{startupNoticeText}</span>
                         </div>
                       )}
                       {parseSuccess && !error && output.length > 0 && (
