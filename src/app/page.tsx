@@ -25,16 +25,26 @@ import {
   normalizePseudocodeError,
   type PseudocodeDiagnostic,
 } from '@/lib/pseudocode/diagnostics';
-import { createShareHash, readShareHash } from '@/lib/share-code';
+import {
+  createExerciseHash,
+  createShareHash,
+  getPageUrlWithoutHash,
+  readExerciseHash,
+  readShareHash,
+  type ExercisePayload,
+} from '@/lib/share-code';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning, MessageSquareText, Bug, Link2, HelpCircle } from 'lucide-react';
+import { Play, Terminal, Code, BookOpen, AlertCircle, CheckCircle, RotateCcw, FileCode, ChevronDown, Copy, Download, Upload, Check, Sun, Trash2, Table, Square, Plus, MessageCircleWarning, MessageSquareText, Bug, Link2, HelpCircle, GraduationCap, Lock } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 
 export default function PseudocodePage() {
@@ -70,9 +80,22 @@ export default function PseudocodePage() {
   const [shareUrl, setShareUrl] = useState('');
   const [shareError, setShareError] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [exercise, setExercise] = useState<ExercisePayload | null>(null);
+  const [showExerciseDialog, setShowExerciseDialog] = useState(false);
+  const [exerciseTitle, setExerciseTitle] = useState('');
+  const [exerciseDescription, setExerciseDescription] = useState('');
+  const [exerciseStarterCode, setExerciseStarterCode] = useState('');
+  const [exerciseInitialFilesText, setExerciseInitialFilesText] = useState('{}');
+  const [exerciseLockSyllabus, setExerciseLockSyllabus] = useState(true);
+  const [exerciseUrl, setExerciseUrl] = useState('');
+  const [exerciseError, setExerciseError] = useState<
+    'invalidInitialFileData' | 'exerciseLinkFailed' | null
+  >(null);
+  const [exerciseCopied, setExerciseCopied] = useState(false);
+  const [activePanelTab, setActivePanelTab] = useState('output');
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [startupNotice, setStartupNotice] = useState<
-    'shared' | 'share-error' | 'draft' | null
+    'shared' | 'share-error' | 'exercise' | 'exercise-error' | 'draft' | null
   >(null);
   const [reportType, setReportType] = useState<'feedback' | 'bug'>('feedback');
   const [bugDescription, setBugDescription] = useState('');
@@ -83,9 +106,10 @@ export default function PseudocodePage() {
     eventId?: string;
   } | null>(null);
   const setSyllabus = useCallback((value: 'igcse-0478' | 'alevel-9618') => {
+    if (exercise?.lockSyllabus) return;
     setSyllabusState(value);
     localStorage.setItem('pseudocode-ide-syllabus', value);
-  }, []);
+  }, [exercise]);
   useEffect(() => {
     try {
       const saved = localStorage.getItem('pseudocode-ide-syllabus');
@@ -122,7 +146,12 @@ export default function PseudocodePage() {
   // Switch parser when syllabus changes
   useEffect(() => {
     parser.current = syllabus === 'alevel-9618' ? new ALevelParser() : new PseudocodeParser();
-  }, [syllabus]);
+    if (exercise) {
+      for (const [filename, lines] of Object.entries(exercise.initialFiles)) {
+        parser.current.setFileContent(filename, lines);
+      }
+    }
+  }, [exercise, syllabus]);
   const syntaxCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Mobile responsive state
@@ -229,6 +258,62 @@ export default function PseudocodePage() {
     }
   };
 
+  const openExerciseCreator = () => {
+    setExerciseTitle('');
+    setExerciseDescription('');
+    setExerciseStarterCode(code);
+    setExerciseInitialFilesText(JSON.stringify(virtualFiles, null, 2));
+    setExerciseLockSyllabus(true);
+    setExerciseUrl('');
+    setExerciseError(null);
+    setExerciseCopied(false);
+    setShowExerciseDialog(true);
+  };
+
+  const handleCreateExerciseLink = async () => {
+    setExerciseError(null);
+    setExerciseCopied(false);
+    let initialFiles: Record<string, string[]>;
+    try {
+      initialFiles = JSON.parse(exerciseInitialFilesText) as Record<
+        string,
+        string[]
+      >;
+    } catch {
+      setExerciseUrl('');
+      setExerciseError('invalidInitialFileData');
+      return;
+    }
+
+    try {
+      const hash = await createExerciseHash({
+        title: exerciseTitle,
+        description: exerciseDescription,
+        syllabus,
+        starterCode: exerciseStarterCode,
+        initialFiles,
+        lockSyllabus: exerciseLockSyllabus,
+      });
+      setExerciseUrl(
+        `${window.location.origin}${window.location.pathname}${hash}`,
+      );
+    } catch {
+      setExerciseUrl('');
+      setExerciseError('exerciseLinkFailed');
+    }
+  };
+
+  const handleCopyExerciseLink = async () => {
+    if (!exerciseUrl) return;
+    try {
+      await navigator.clipboard.writeText(exerciseUrl);
+      setExerciseCopied(true);
+      window.setTimeout(() => setExerciseCopied(false), 2000);
+    } catch {
+      setExerciseError('exerciseLinkFailed');
+    }
+  };
+
   // 导入伪代码功能
   const handleImportCode = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -289,6 +374,24 @@ export default function PseudocodePage() {
 
     const restoreEditor = async () => {
       try {
+        const loadedExercise = await readExerciseHash(window.location.hash);
+        if (cancelled) return;
+        if (loadedExercise) {
+          setExercise(loadedExercise);
+          setCode(loadedExercise.starterCode);
+          setVirtualFiles(loadedExercise.initialFiles);
+          setSyllabusState(loadedExercise.syllabus);
+          setShowSyllabusDialog(false);
+          setStartupNotice('exercise');
+          setActivePanelTab('exercise');
+          localStorage.setItem(
+            'pseudocode-ide-syllabus',
+            loadedExercise.syllabus,
+          );
+          setMounted(true);
+          return;
+        }
+
         const shared = await readShareHash(window.location.hash);
         if (cancelled) return;
         if (shared) {
@@ -301,7 +404,13 @@ export default function PseudocodePage() {
           return;
         }
       } catch {
-        if (!cancelled) setStartupNotice('share-error');
+        if (!cancelled) {
+          setStartupNotice(
+            window.location.hash.startsWith('#exercise=')
+              ? 'exercise-error'
+              : 'share-error',
+          );
+        }
       }
 
       try {
@@ -397,7 +506,7 @@ export default function PseudocodePage() {
         layout: desktopLayout,
         language: locale,
         browser: ua,
-        url: typeof window !== 'undefined' ? window.location.href : 'N/A',
+        url: getPageUrlWithoutHash(),
       },
       code: code || null,
       output: output && output.length > 0 ? output : null,
@@ -447,7 +556,7 @@ export default function PseudocodePage() {
         const eventId = Sentry.captureFeedback({
           message: bugDescription.trim(),
           source: 'pseudocode-editor',
-          url: window.location.href,
+          url: getPageUrlWithoutHash(),
           tags: {
             report_kind: 'feedback',
             syllabus,
@@ -491,7 +600,7 @@ export default function PseudocodePage() {
         message: feedbackMessage,
         associatedEventId: eventId,
         source: 'pseudocode-editor',
-        url: window.location.href,
+        url: getPageUrlWithoutHash(),
         tags: {
           syllabus,
           locale,
@@ -736,6 +845,32 @@ export default function PseudocodePage() {
     }
   };
 
+  const resetToStarterCode = () => {
+    if (!exercise) return;
+    setCode(exercise.starterCode);
+    setOutput([]);
+    setErrorDiagnostic(null);
+    setParseSuccess(false);
+    setAstJson('');
+    setTraceTable([]);
+    setArraysData({});
+    setFinalVariables({});
+    setFinalVariableTypes({});
+    setVirtualFiles(exercise.initialFiles);
+    setSelectedFile(null);
+    setWaitingForInput(false);
+    setInputPrompt('');
+    setInputValue('');
+    if (inputResolveRef.current) {
+      inputResolveRef.current('');
+      inputResolveRef.current = null;
+    }
+    for (const [filename, lines] of Object.entries(exercise.initialFiles)) {
+      parser.current.setFileContent(filename, lines);
+    }
+    clearEditorMarkers();
+  };
+
   // 删除单个虚拟文件
   const deleteVirtualFile = (filename: string) => {
     setVirtualFiles(prev => {
@@ -831,6 +966,10 @@ export default function PseudocodePage() {
       ? t('sharedCodeLoaded')
       : startupNotice === 'share-error'
         ? t('sharedCodeLoadFailed')
+        : startupNotice === 'exercise'
+          ? t('exerciseLoaded')
+          : startupNotice === 'exercise-error'
+            ? t('exerciseLoadFailed')
         : startupNotice === 'draft'
           ? t('draftRestored')
           : null;
@@ -910,6 +1049,156 @@ export default function PseudocodePage() {
           )}
         </DialogContent>
       </Dialog>
+      <Dialog open={showExerciseDialog} onOpenChange={setShowExerciseDialog}>
+        <DialogContent className={`sm:max-w-xl ${styles.outputBg} ${styles.outputBorder} ${styles.text}`}>
+          <DialogHeader>
+            <DialogTitle className={styles.headerText}>
+              {t('createExerciseTitle')}
+            </DialogTitle>
+            <DialogDescription className={styles.outputDimText}>
+              {t('createExerciseDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="exercise-title" className={styles.headerText}>
+                {t('exerciseTitle')}
+              </Label>
+              <Input
+                id="exercise-title"
+                value={exerciseTitle}
+                maxLength={120}
+                onChange={(event) => {
+                  setExerciseTitle(event.target.value);
+                  setExerciseUrl('');
+                }}
+                placeholder={t('exerciseTitlePlaceholder')}
+                className={`${styles.outputBg} ${styles.outputLineBorder}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exercise-description" className={styles.headerText}>
+                {t('exerciseDescription')}
+              </Label>
+              <Textarea
+                id="exercise-description"
+                value={exerciseDescription}
+                maxLength={10000}
+                onChange={(event) => {
+                  setExerciseDescription(event.target.value);
+                  setExerciseUrl('');
+                }}
+                placeholder={t('exerciseDescriptionPlaceholder')}
+                className={`min-h-32 resize-y ${styles.outputBg} ${styles.outputLineBorder}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exercise-starter-code" className={styles.headerText}>
+                {t('starterCode')}
+              </Label>
+              <p className={`text-xs ${styles.outputDimText}`}>
+                {t('starterCodeDescription')}
+              </p>
+              <Textarea
+                id="exercise-starter-code"
+                value={exerciseStarterCode}
+                maxLength={200000}
+                onChange={(event) => {
+                  setExerciseStarterCode(event.target.value);
+                  setExerciseUrl('');
+                }}
+                className={`min-h-40 resize-y font-mono text-xs ${styles.outputBg} ${styles.outputLineBorder}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exercise-initial-files" className={styles.headerText}>
+                {t('initialFileData')}
+              </Label>
+              <p className={`text-xs ${styles.outputDimText}`}>
+                {t('initialFileDataDescription')}
+              </p>
+              <Textarea
+                id="exercise-initial-files"
+                value={exerciseInitialFilesText}
+                onChange={(event) => {
+                  setExerciseInitialFilesText(event.target.value);
+                  setExerciseUrl('');
+                  setExerciseError(null);
+                }}
+                placeholder={t('initialFileDataPlaceholder')}
+                className={`min-h-32 resize-y font-mono text-xs ${styles.outputBg} ${styles.outputLineBorder}`}
+              />
+            </div>
+            <div className={`rounded-md border p-3 ${styles.outputLineBorder} ${styles.headerBg}`}>
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="exercise-lock-syllabus"
+                  checked={exerciseLockSyllabus}
+                  onCheckedChange={(checked) => {
+                    setExerciseLockSyllabus(checked === true);
+                    setExerciseUrl('');
+                  }}
+                  className="mt-0.5"
+                />
+                <div>
+                  <Label
+                    htmlFor="exercise-lock-syllabus"
+                    className={styles.headerText}
+                  >
+                    {t('lockExerciseSyllabus')}
+                  </Label>
+                  <p className={`mt-1 text-xs ${styles.outputDimText}`}>
+                    {syllabus === 'igcse-0478'
+                      ? 'Cambridge IGCSE 0478'
+                      : 'Cambridge A-Level 9618'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {exerciseError && (
+              <div className={`rounded-md border p-3 text-sm ${styles.outputLineBorder} ${styles.outputErrorText}`}>
+                {t(exerciseError)}
+              </div>
+            )}
+
+            {exerciseUrl ? (
+              <div className="space-y-3">
+                <Textarea
+                  value={exerciseUrl}
+                  readOnly
+                  aria-label={t('createExerciseTitle')}
+                  className={`min-h-28 resize-none font-mono text-xs ${styles.outputBg} ${styles.outputLineBorder}`}
+                />
+                <Button
+                  type="button"
+                  onClick={() => void handleCopyExerciseLink()}
+                  className="bg-[#2B4D91] text-white hover:bg-[#3B67BD]"
+                >
+                  {exerciseCopied ? (
+                    <Check className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  {exerciseCopied
+                    ? t('exerciseLinkCopied')
+                    : t('copyExerciseLink')}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                disabled={!exerciseTitle.trim()}
+                onClick={() => void handleCreateExerciseLink()}
+                className="bg-[#2B4D91] text-white hover:bg-[#3B67BD]"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                {t('generateExerciseLink')}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
       <div 
       className={`h-screen flex flex-col overflow-hidden ${styles.bg} ${styles.text}`}
       data-theme={theme}
@@ -924,9 +1213,16 @@ export default function PseudocodePage() {
         <div className="ml-1 md:ml-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className={`${styles.buttonText} ${styles.buttonHover}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={exercise?.lockSyllabus}
+                title={exercise?.lockSyllabus ? t('syllabusLocked') : undefined}
+                className={`${styles.buttonText} ${styles.buttonHover}`}
+              >
                 <BookOpen className="w-4 h-4 mr-0 md:mr-1" />
                 <span className="hidden md:inline text-xs">{syllabus === 'igcse-0478' ? 'IGCSE 0478' : 'A-Level 9618'}</span>
+                {exercise?.lockSyllabus && <Lock className="ml-1 h-3 w-3" />}
                 <ChevronDown className="w-3 h-3 ml-0 md:ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -992,6 +1288,13 @@ export default function PseudocodePage() {
               >
                 <Link2 className="w-4 h-4 mr-2" />
                 {t('share')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={openExerciseCreator}
+                className={`${styles.dropdownItemText} ${styles.dropdownItemHover} cursor-pointer`}
+              >
+                <GraduationCap className="w-4 h-4 mr-2" />
+                {t('createExercise')}
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={resetCode}
@@ -1219,13 +1522,23 @@ export default function PseudocodePage() {
             { width: `${100 - leftWidth}%` }
           }
         >
-          <Tabs defaultValue="output" className="flex flex-col h-full">
+          <Tabs
+            value={activePanelTab}
+            onValueChange={setActivePanelTab}
+            className="flex flex-col h-full"
+          >
             <div className={`border-b px-1 md:px-2 shrink-0 ${styles.outputBorder}`}>
               <TabsList className="bg-transparent h-9 md:h-10">
                 <TabsTrigger value="output" className={`${styles.tabActiveBg} ${styles.tabActiveText} ${styles.tabText} ${styles.tabHoverText}`}>
                   <Terminal className="w-4 h-4 sm:mr-1" />
                   <span className="hidden sm:inline">{t('output')}</span>
                 </TabsTrigger>
+                {exercise && (
+                  <TabsTrigger value="exercise" className={`${styles.tabActiveBg} data-[state=active]:text-cyan-400 ${styles.tabText} ${styles.tabHoverText}`}>
+                    <GraduationCap className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">{t('exerciseMode')}</span>
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="ast" className={`${styles.tabActiveBg} data-[state=active]:text-purple-500 ${styles.tabText} ${styles.tabHoverText}`}>
                   <Code className="w-4 h-4 sm:mr-1" />
                   <span className="hidden sm:inline">AST</span>
@@ -1310,8 +1623,8 @@ export default function PseudocodePage() {
                         </Collapsible>
                       )}
                       {!error && startupNoticeText && (
-                        <div className={`flex items-center gap-2 text-sm ${startupNotice === 'share-error' ? styles.outputErrorText : styles.outputSuccessText}`}>
-                          {startupNotice === 'share-error' ? (
+                        <div className={`flex items-center gap-2 text-sm ${startupNotice === 'share-error' || startupNotice === 'exercise-error' ? styles.outputErrorText : styles.outputSuccessText}`}>
+                          {startupNotice === 'share-error' || startupNotice === 'exercise-error' ? (
                             <AlertCircle className="w-4 h-4 shrink-0" />
                           ) : (
                             <CheckCircle className="w-4 h-4 shrink-0" />
@@ -1376,7 +1689,76 @@ export default function PseudocodePage() {
                   </div>
                 </div>
               </TabsContent>
-              
+
+              {exercise && (
+                <TabsContent value="exercise" className="h-full m-0 p-0 flex flex-col">
+                  <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="h-5 w-5 shrink-0 text-[#8ED0FF]" />
+                          <span className="rounded bg-[#2B4D91] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                            {t('exerciseMode')}
+                          </span>
+                        </div>
+                        <h2 className={`mt-3 text-xl font-semibold ${styles.headerText}`}>
+                          {exercise.title}
+                        </h2>
+                        <p className={`mt-1 text-xs ${styles.outputDimText}`}>
+                          {syllabus === 'igcse-0478'
+                            ? 'Cambridge IGCSE 0478'
+                            : 'Cambridge A-Level 9618'}
+                          {exercise.lockSyllabus ? ` · ${t('syllabusLocked')}` : ''}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetToStarterCode}
+                        className={`${styles.buttonText} ${styles.buttonHover} shrink-0`}
+                      >
+                        <RotateCcw className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">{t('resetStarterCode')}</span>
+                      </Button>
+                    </div>
+
+                    <section className={`mt-5 rounded-lg border p-4 ${styles.outputLineBorder} ${styles.headerBg}`}>
+                      <h3 className={`text-sm font-semibold ${styles.headerText}`}>
+                        {t('exerciseInstructions')}
+                      </h3>
+                      <p className={`mt-2 whitespace-pre-wrap text-sm leading-6 ${styles.outputDimText}`}>
+                        {exercise.description || t('exerciseDescription')}
+                      </p>
+                    </section>
+
+                    <section className={`mt-4 rounded-lg border p-4 ${styles.outputLineBorder} ${styles.headerBg}`}>
+                      <h3 className={`text-sm font-semibold ${styles.headerText}`}>
+                        {t('exerciseInitialData')}
+                      </h3>
+                      {Object.keys(exercise.initialFiles).length === 0 ? (
+                        <p className={`mt-2 text-sm ${styles.outputDimText}`}>
+                          {t('noExerciseInitialData')}
+                        </p>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          {Object.entries(exercise.initialFiles).map(([filename, lines]) => (
+                            <div key={filename} className={`overflow-hidden rounded-md border ${styles.outputLineBorder}`}>
+                              <div className={`border-b px-3 py-2 font-mono text-xs ${styles.outputLineBorder} ${styles.headerText}`}>
+                                {filename}
+                              </div>
+                              <pre className={`max-h-48 overflow-auto whitespace-pre-wrap p-3 font-mono text-xs leading-5 ${styles.outputDimText}`}>
+                                {lines.join('\n')}
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                </TabsContent>
+              )}
+
               <TabsContent value="ast" className="h-full m-0 p-0 flex flex-col">
                 <div className="flex-1 overflow-auto p-4 custom-scrollbar">
                   <pre className={`font-mono text-xs ${styles.outputDimText} whitespace-pre-wrap`}>

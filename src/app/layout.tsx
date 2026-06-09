@@ -203,6 +203,7 @@ export default function RootLayout({
               data-domains="pseudocode.site"
               data-do-not-track="true"
               data-exclude-search="true"
+              data-exclude-hash="true"
               strategy="afterInteractive"
             />
           </ThemeProvider>

@@ -76,6 +76,8 @@ try {
 
 window.gtag('set', 'ads_data_redaction', true);
 window.gtag('js', new Date());
-window.gtag('config', '${GOOGLE_ANALYTICS_ID}');
+window.gtag('config', '${GOOGLE_ANALYTICS_ID}', {
+  page_location: window.location.origin + window.location.pathname + window.location.search
+});
 `;
 }

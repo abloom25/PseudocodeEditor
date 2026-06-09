@@ -157,9 +157,6 @@ export function GuideShell({
             <Braces className="h-4 w-4 text-[#6AA9FF]" />
             {t('footerReference')}
           </span>
-          <Link href="/" className="font-medium text-[#8ED0FF] hover:text-white">
-            {t('openEditor')} →
-          </Link>
           <LanguageSelect />
         </div>
       </footer>
