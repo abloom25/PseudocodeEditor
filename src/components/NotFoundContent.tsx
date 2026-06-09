@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, BookOpen, Braces, Languages } from 'lucide-react';
+import { ArrowLeft, BookOpen, Braces } from 'lucide-react';
+import { LanguageSelect } from '@/components/LanguageSelect';
 import { useLanguage } from '@/components/LanguageProvider';
-import { localeNames, supportedLocales } from '@/lib/i18n';
 
 export function NotFoundContent() {
-  const { locale, setLocale, t } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <main className="h-screen overflow-y-auto bg-[#070B17] text-[#DCE7FF]">
@@ -20,24 +20,7 @@ export function NotFoundContent() {
             {t('appName')}
           </Link>
 
-          <div className="flex items-center gap-1 rounded-md border border-[#22365F] bg-[#070B17] p-1">
-            <Languages className="mx-1 h-4 w-4 text-[#8FA3CC]" aria-hidden="true" />
-            {supportedLocales.map((language) => (
-              <button
-                key={language}
-                type="button"
-                onClick={() => setLocale(language)}
-                aria-pressed={locale === language}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  locale === language
-                    ? 'bg-[#2B4D91] text-white'
-                    : 'text-[#8FA3CC] hover:bg-[#162342] hover:text-white'
-                }`}
-              >
-                {localeNames[language]}
-              </button>
-            ))}
-          </div>
+          <LanguageSelect className="bg-[#070B17]" />
         </div>
       </header>
 

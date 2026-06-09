@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { LanguageSelect } from '@/components/LanguageSelect';
 import { useLanguage } from '@/components/LanguageProvider';
-import { localeNames, supportedLocales, type MessageKey } from '@/lib/i18n';
+import type { MessageKey } from '@/lib/i18n';
 import {
   ArrowLeft,
   BookOpen,
@@ -31,7 +32,7 @@ export function GuideShell({
   showBackLink = true,
   path,
 }: GuideShellProps) {
-  const { locale, setLocale, t } = useLanguage();
+  const { t } = useLanguage();
   const localizedTitle = t(titleKey);
   const siteUrl = 'https://pseudocode.site';
   const breadcrumbItems = [
@@ -159,18 +160,7 @@ export function GuideShell({
           <Link href="/" className="font-medium text-[#8ED0FF] hover:text-white">
             {t('openEditor')} →
           </Link>
-          <div className="flex items-center gap-1 rounded-md border border-[#22365F] p-1">
-            {supportedLocales.map(language => (
-              <button
-                key={language}
-                type="button"
-                onClick={() => setLocale(language)}
-                className={`rounded px-2 py-1 text-xs ${locale === language ? 'bg-[#2B4D91] text-white' : 'text-[#8FA3CC] hover:text-white'}`}
-              >
-                {localeNames[language]}
-              </button>
-            ))}
-          </div>
+          <LanguageSelect />
         </div>
       </footer>
     </main>
