@@ -17,7 +17,8 @@ Sentry.init({
     }),
     Sentry.replayIntegration(),
   ],
-  tracesSampleRate: 0,
+  tracesSampleRate: 0.1,
+  enableMetrics: true,
   enableLogs: true,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
@@ -40,5 +41,13 @@ Sentry.init({
     return event;
   },
 });
+
+Sentry.metrics.count('app_session', 1, {
+  attributes: {
+    page: window.location.pathname,
+    source: 'browser',
+  },
+});
+void Sentry.flush(5_000);
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

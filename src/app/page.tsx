@@ -12,6 +12,10 @@ import type { DesktopLayout, Syllabus } from '@/features/pseudocode-ide/types';
 import { type ThemeName } from '@/features/pseudocode-ide/config/theme-styles';
 import { useTheme } from 'next-themes';
 import * as Sentry from '@sentry/nextjs';
+import {
+  countSentryMetric,
+  distributionSentryMetric,
+} from '@/lib/sentry-metrics';
 
 import Editor, { loader, type OnMount } from '@monaco-editor/react';
 /* eslint-disable */
@@ -242,7 +246,7 @@ export default function PseudocodePage() {
       const hash = await createShareHash({ code, syllabus });
       setShareUrl(`${window.location.origin}${window.location.pathname}${hash}`);
       setShowShareDialog(true);
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action: 'create_share_link',
           syllabus,
@@ -305,7 +309,7 @@ export default function PseudocodePage() {
       setExerciseUrl(
         `${window.location.origin}${window.location.pathname}${hash}`,
       );
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action: 'create_exercise_link',
           syllabus,
@@ -581,7 +585,7 @@ export default function PseudocodePage() {
         });
         const flushed = await Sentry.flush(10_000);
         if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
-        Sentry.metrics.count('user_action', 1, {
+        countSentryMetric('user_action', 1, {
           attributes: {
             action: 'submit_feedback',
             syllabus,
@@ -635,7 +639,7 @@ export default function PseudocodePage() {
       const flushed = await Sentry.flush(10_000);
       if (!flushed) throw new Error('Sentry event queue did not flush before timeout');
 
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action: 'submit_bug_report',
           syllabus,
@@ -647,7 +651,7 @@ export default function PseudocodePage() {
       setBugSubmitResult({ status: 'success', eventId });
     } catch (submissionError) {
       console.error('Failed to submit report:', submissionError);
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action:
             reportType === 'feedback'
@@ -806,7 +810,7 @@ export default function PseudocodePage() {
       setFinalVariables(parser.current.getVariables());
       setFinalVariableTypes(parser.current.getVariableTypes());
       setArraysData(convertArraysData(parser.current.getArrays(), parser.current.getVariableTypes()));
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action: 'run_code',
           syllabus,
@@ -814,7 +818,7 @@ export default function PseudocodePage() {
           exercise_mode: Boolean(exercise),
         },
       });
-      Sentry.metrics.distribution(
+      distributionSentryMetric(
         'pseudocode_execution_time',
         performance.now() - startedAt,
         {
@@ -833,7 +837,7 @@ export default function PseudocodePage() {
       setErrorDiagnostic(diagnosticError.diagnostic);
       setParseSuccess(false);
       showEditorError(diagnosticError);
-      Sentry.metrics.count('user_action', 1, {
+      countSentryMetric('user_action', 1, {
         attributes: {
           action: 'run_code',
           syllabus,
@@ -842,7 +846,7 @@ export default function PseudocodePage() {
           diagnostic_code: diagnosticError.diagnostic.code,
         },
       });
-      Sentry.metrics.distribution(
+      distributionSentryMetric(
         'pseudocode_execution_time',
         performance.now() - startedAt,
         {

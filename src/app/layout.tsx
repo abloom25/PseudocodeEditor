@@ -201,7 +201,6 @@ export default function RootLayout({
               src="https://cloud.umami.is/script.js"
               data-website-id={umamiWebsiteId}
               data-domains="pseudocode.site"
-              data-do-not-track="true"
               data-exclude-search="true"
               data-exclude-hash="true"
               strategy="afterInteractive"

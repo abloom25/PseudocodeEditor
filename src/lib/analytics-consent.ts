@@ -41,6 +41,17 @@ export function updateAnalyticsConsent(consent: AnalyticsConsent): void {
     ad_personalization: 'denied',
   });
 
+  if (consent === 'granted') {
+    window.gtag?.('event', 'page_view', {
+      page_location:
+        window.location.origin +
+        window.location.pathname +
+        window.location.search,
+      page_path: window.location.pathname + window.location.search,
+      page_title: document.title,
+    });
+  }
+
   window.dispatchEvent(
     new CustomEvent<AnalyticsConsent>(ANALYTICS_CONSENT_CHANGED_EVENT, {
       detail: consent,
